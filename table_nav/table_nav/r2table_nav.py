@@ -20,8 +20,7 @@ front_angles = range(-front_angle,front_angle+1,1)
 scanfile = 'lidar.txt'
 mapfile = 'map.txt'
 
-# code from https://automaticaddison.com/how-to-convert-a-quaternion-into-euler-angles-in-python/
-def euler_from_quaternion(x, y, z, w):
+def euler_from_quaternion(x, y, z, w): # code from https://automaticaddison.com/how-to-convert-a-quaternion-into-euler-angles-in-python/
     """
     Convert a quaternion into euler angles (roll, pitch, yaw)
     roll is rotation around x in radians (counterclockwise)
@@ -123,18 +122,17 @@ class TableNav(Node):
         c_change = c_target_yaw / c_yaw
         # get the sign of the imaginary component to figure out which way we have to turn
         c_change_dir = np.sign(c_change.imag)
-        # set linear speed to zero so the TurtleBot rotates on the spot
-        twist.linear.x = 0.0
-        # set the direction to rotate
-        twist.angular.z = c_change_dir * rotatechange
-        # start rotation
+
+        # publish rotation command
+        twist.linear.x, twist.angular.z = 0.0, c_change_dir * rotatechange
         self.publisher_.publish(twist)
 
+
         # we will use the c_dir_diff variable to see if we can stop rotating
-        c_dir_diff = c_change_dir
-        # self.get_logger().info('c_change_dir: %f c_dir_diff: %f' % (c_change_dir, c_dir_diff))
         # if the rotation direction was 1.0, then we will want to stop when the c_dir_diff
         # becomes -1.0, and vice versa
+
+        c_dir_diff = c_change_dir
         while(c_change_dir * c_dir_diff > 0):
             # allow the callback functions to run
             rclpy.spin_once(self)
@@ -149,108 +147,65 @@ class TableNav(Node):
             # self.get_logger().info('c_change_dir: %f c_dir_diff: %f' % (c_change_dir, c_dir_diff))
 
         self.get_logger().info('End Yaw: %f' % math.degrees(current_yaw))
-        # set the rotation speed to 0
-        twist.angular.z = 0.0
         # stop the rotation
+        twist.angular.z = 0.0
         self.publisher_.publish(twist)
 
 
-    def bck_til_more_than(self, dist):
+    # all-in-one function for linear movement
 
-        self.get_logger().info('Moving backward until distance at 0 degrees is more than %f' % dist)
-        # allow the callback functions to run
+    # first input == direction of movement (forward or backward)
+    # second input == angle to check (0, 90, 180, 270)
+    # third == check if more or less than the input distance (more or less)
+    # fourth == distance to check
 
-        # get the distance at 0 degrees
-        dist_at_0 = self.laser_range[0]
-        # log the info
-        self.get_logger().info('Distance at 0 degrees: %f' % dist_at_0)
-        # create Twist object
+    def move_til(self, direction, angle, more_less, dist):
+
+        self.get_logger().info('Moving %s until distance at %s degrees is %s than %f' % (direction, angle, more_less, dist))
+
+        move_dict = {'forward': 0.03, 
+                    'backward': -0.03,
+                    'more': True,
+                    'less': False}
+
+        # create Twist object, publish movement
         twist = Twist()
-        # set linear speed to -0.3, and angular speed to 0, so the TurtleBot moves backward
-        twist.linear.x,twist.angular.z = -0.03,0.0
+        twist.linear.x,twist.angular.z = move_dict[direction],0.0
         time.sleep(1)
         self.publisher_.publish(twist)
 
+        self.get_logger().info('Linear movement initiated')
 
-        # while the distance at 0 degrees is less than dist
-        while(dist_at_0 < dist):
-            # allow the callback functions to run
+        # create parameter to check distance
+        check_dist = self.laser_range[angle]
+        while math.isnan(check_dist) or (((not math.isnan(check_dist)) and (check_dist < dist)) == move_dict[more_less]):
+
+            #allow the callback functions to run
             rclpy.spin_once(self)
-            # get the distance at 0 degrees
-            dist_at_0 = self.laser_range[0]
+            check_dist = self.laser_range[angle]
+
             # log the info
-            self.get_logger().info('Distance at 0 degrees: %f' % dist_at_0)
+            self.get_logger().info('Distance at %s degrees: %f' % (angle, check_dist))
 
         # stop moving
         twist.linear.x = 0.0
         time.sleep(1)
         self.publisher_.publish(twist)
 
-    def bck_til_less_than(self, dist):
-        self.get_logger().info('Moving backward until distance at 180 degrees is less than %f' % dist)
-        # create Twist object
-        twist = Twist()
-        # set linear speed to -0.03, and angular speed to 0, so the TurtleBot moves backward
-        twist.linear.x,twist.angular.z = -0.03,0.0
-        time.sleep(1)
-        self.publisher_.publish(twist)
 
-        # get the distance at 0 degrees
-        dist_at_0 = self.laser_range[180]
-        # log the info
-        self.get_logger().info('Distance: %f' % dist_at_0)
-        # while the distance at 180 degrees is less than dist
-        while(dist_at_0 > dist):
-            # allow the callback functions to run
-            rclpy.spin_once(self)
-            # get the distance at 0 degrees
-            dist_at_0 = self.laser_range[0]
-            # log the info
-            self.get_logger().info('Distance: %f' % dist_at_0)
+    #function to simplify right angle rotation
+    def right_angle_rotate(self, orientation):
 
-        # stop moving
-        twist.linear.x = 0.0
-        time.sleep(1)
-        self.publisher_.publish(twist)
+        self.get_logger().info('Turning 90 degrees %s' % orientation)
 
-    def fwd_til_less_than(self, dist):
-        self.get_logger().info('Moving forward until distance at 0 degrees is less than %f' % dist)
-        # create Twist object
-        twist = Twist()
-        # set linear speed to 0.03, and angular speed to 0, so the TurtleBot moves forward
-        twist.linear.x, twist.angular.z = 0.03, 0.0
-        time.sleep(1)
-        self.publisher_.publish(twist)
-
-        # get the distance at 0 degrees
-        dist_at_0 = self.laser_range[0]
-        # log the info
-        self.get_logger().info('Distance: %f' % dist_at_0)
-        # while the distance at 0 degrees is less than dist
-        while(dist_at_0 > dist):
-            # allow the callback functions to run
-            rclpy.spin_once(self)
-            # get the distance at 0 degrees
-            dist_at_0 = self.laser_range[0]
-            # log the info
-            self.get_logger().info('Distance: %f' % dist_at_0)
-
-        # stop moving
-        twist.linear.x = 0.0
-        time.sleep(1)
-        self.publisher_.publish(twist)
-
-    def clkwise_90(self):
-        self.get_logger().info('Turning 90 degrees clockwise')
-        self.rotatebot(270)
-
-    def aclkwise_90(self):
-        self.get_logger().info('Turning 90 degrees anticlockwise')
-        self.rotatebot(90)
+        turn_dict = {'clockwise': 270,
+                    'anticlockwise': 90}
+        
+        self.rotatebot(turn_dict[orientation])
 
     def stopbot(self):
         self.get_logger().info('In stopbot')
-        # publish to cmd_vel to move TurtleBot
+        # create Twist object, publish movement
         twist = Twist()
         twist.linear.x = 0.0
         twist.angular.z = 0.0
@@ -260,31 +215,31 @@ class TableNav(Node):
 
     def table1(self):
 
-        self.get_logger().info('In table1')
+        self.get_logger().info('Navigating to Table 1')
 
         try:
 
             while rclpy.ok():
                 if self.laser_range.size != 0:
-                    #move backwards into main axis until distance at 0 degrees is more than 0.7
-                    self.bck_til_more_than(0.7)
+                    #move until distance at 0 degrees is more than 0.7
+                    self.move_til('backward', 0, 'more', 0.7)
 
                     #calibrate
                     #self.calibrate(left_wall=True)
 
                     #rotate 90 degrees anticlockwise
-                    self.aclkwise_90()
+                    self.right_angle_rotate('anticlockwise')
 
                     #move forward until distance at 0 degrees is less than 0.5
-                    self.fwd_til_less_than(0.5)
+                    self.move_til('forward', 0, 'less', 0.5)
 
                     #rotate 90 degrees anticlockwise
-                    self.aclkwise_90()
+                    self.right_angle_rotate('anticlockwise')
 
-                    lri = (self.laser_range[front_angles]<float(stop_distance)).nonzero()
-                    if(len(lri[0])>0):
-                        # stop moving
-                        self.stopbot()
+                    #move forward until distance at 0 degrees is less than 0.1
+                    self.move_til('forward', 0, 'less', 0.1)
+                    
+                    break
 
                 # allow the callback functions to run
                 rclpy.spin_once(self)
@@ -302,7 +257,7 @@ class TableNav(Node):
 def main(args=None):
     rclpy.init(args=args)
     table_nav = TableNav()
-    table_nav.get_logger().info('In main')
+    
     # rclpy.spin(table_nav)
 
     #receive input from user to know which table to go to, then execute corresponding table function
