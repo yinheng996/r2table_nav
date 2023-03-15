@@ -174,9 +174,11 @@ class TableNav(Node):
         time.sleep(1)
         self.publisher_.publish(twist)
 
+        self.get_logger().info('Linear movement initiated')
+
         # create parameter to check distance
         check_dist = self.laser_range[angle]
-        while((check_dist > dist) == move_dict[more_less]):
+        while math.isnan(check_dist) or (((not math.isnan(check_dist)) and (check_dist < dist)) == move_dict[more_less]):
 
             #allow the callback functions to run
             rclpy.spin_once(self)
@@ -213,31 +215,31 @@ class TableNav(Node):
 
     def table1(self):
 
-        self.get_logger().info('In table1')
+        self.get_logger().info('Navigating to Table 1')
 
         try:
 
             while rclpy.ok():
                 if self.laser_range.size != 0:
-                    #move backwards into main axis until distance at 0 degrees is more than 0.7
-                    self.bck_til_more_than(0.7)
+                    #move until distance at 0 degrees is more than 0.7
+                    self.move_til('backward', 0, 'more', 0.7)
 
                     #calibrate
                     #self.calibrate(left_wall=True)
 
                     #rotate 90 degrees anticlockwise
-                    self.aclkwise_90()
+                    self.right_angle_rotate('anticlockwise')
 
                     #move forward until distance at 0 degrees is less than 0.5
-                    self.fwd_til_less_than(0.5)
+                    self.move_til('forward', 0, 'less', 0.5)
 
                     #rotate 90 degrees anticlockwise
-                    self.aclkwise_90()
+                    self.right_angle_rotate('anticlockwise')
 
-                    lri = (self.laser_range[front_angles]<float(stop_distance)).nonzero()
-                    if(len(lri[0])>0):
-                        # stop moving
-                        self.stopbot()
+                    #move forward until distance at 0 degrees is less than 0.1
+                    self.move_til('forward', 0, 'less', 0.1)
+                    
+                    break
 
                 # allow the callback functions to run
                 rclpy.spin_once(self)
@@ -255,7 +257,7 @@ class TableNav(Node):
 def main(args=None):
     rclpy.init(args=args)
     table_nav = TableNav()
-    table_nav.get_logger().info('In main')
+    
     # rclpy.spin(table_nav)
 
     #receive input from user to know which table to go to, then execute corresponding table function
