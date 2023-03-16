@@ -192,6 +192,16 @@ class TableNav(Node):
         time.sleep(1)
         self.publisher_.publish(twist)
 
+    def callibrateR(self):
+        if (self.laser_range[250]/1.064) - self.laser_range[270] <= 1 and (self.laser_range[290]/1.064) - self.laser_range[270] <= 1:
+            return True
+        else:
+            if self.laser_range[np.nanargmin(self.laser_range[230:310])] < self.laser_range[270]:
+                self.rotatebot(360 - (270 - np.nanargmin(self.laser_range[230:310])))
+            else:
+                self.rotatebot(np.nanargmin(self.laser_range[230:310]) - 270)
+        return self.callibrateR(self)
+
 
     #function to simplify right angle rotation
     def right_angle_rotate(self, orientation):
