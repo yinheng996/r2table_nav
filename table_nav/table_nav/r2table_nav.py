@@ -163,8 +163,8 @@ class TableNav(Node):
 
         self.get_logger().info('Moving %s until distance at %s degrees is %s than %f' % (direction, angle, more_less, dist))
 
-        move_dict = {'forward': 0.03, 
-                    'backward': -0.03,
+        move_dict = {'forward': 0.1, 
+                    'backward': -0.1,
                     'more': True,
                     'less': False}
 
@@ -212,6 +212,15 @@ class TableNav(Node):
         time.sleep(1)
         self.publisher_.publish(twist)
 
+    def get_shortest_distance(self, starting_angle, ending_angle):
+        # get the angle with the shortest distance within the starting and ending angles from the laser_range array
+        angle = np.nanargmin(self.laser_range[starting_angle:ending_angle])
+
+
+    def move_to_table(self):
+        self.get_logger().info('Moving to table')
+        #self.move_til('forward', 0, 'less', 0.5)
+
 
     def table1(self):
 
@@ -222,13 +231,13 @@ class TableNav(Node):
             while rclpy.ok():
                 if self.laser_range.size != 0:
                     #move until distance at 0 degrees is more than 0.7
-                    self.move_til('backward', 0, 'more', 0.7)
+                    self.move_til('backward', 180, 'less', 0.5)
 
                     #calibrate
                     #self.calibrate(left_wall=True)
 
                     #rotate 90 degrees anticlockwise
-                    self.right_angle_rotate('anticlockwise')
+                    self.right_angle_rotate('clockwise')
 
                     #move forward until distance at 0 degrees is less than 0.5
                     self.move_til('forward', 0, 'less', 0.5)
@@ -237,8 +246,63 @@ class TableNav(Node):
                     self.right_angle_rotate('anticlockwise')
 
                     #move forward until distance at 0 degrees is less than 0.1
-                    self.move_til('forward', 0, 'less', 0.1)
+                    self.move_til('forward', 0, 'less', 0.5)
+
+                    self.right_angle_rotate('anticlockwise')
+
+                    self.move_til('forward', 0, 'less', 0.3)
                     
+                    break
+
+                # allow the callback functions to run
+                rclpy.spin_once(self)
+
+
+        except Exception as e:
+            print(e)
+        
+        # Ctrl-c detected
+        finally:
+            # stop moving
+            self.stopbot()
+
+    def table6(self):
+            
+        self.get_logger().info('Navigating to Table 6')
+
+        try:
+
+            while rclpy.ok():
+                if self.laser_range.size != 0:
+                    #move backward until distance at 180 degrees is less than 0.5
+                    self.move_til('backward', 180, 'less', 0.5)
+
+                    #rotate 90 degrees anticlockwise
+                    self.right_angle_rotate('anticlockwise')
+
+                    #move forward until distance at 0 degrees is less than 0.5
+                    self.move_til('forward', 0, 'less', 0.5)
+
+                    #rotate 90 degrees anticlockwise
+                    self.right_angle_rotate('clockwise')
+
+                    #move forward until distance at 0 degrees is less than 1.34
+                    self.move_til('forward', 0, 'less', 1.34)
+
+                    #rotate 90 degrees anticlockwise
+                    self.right_angle_rotate('anticlockwise')
+
+                    #move forward until distance at 0 degrees is less than 1.4
+                    self.move_til('forward', 0, 'less', 1.4)
+
+                    #check the shortest distance within the upper left quadrant of the robot and rotate to that angle
+                    angle = self.get_shortest_distance(0, 90)
+                    self.rotatebot(angle)
+
+                    #move forward until distance at 0 degrees is less than 0.3
+                    self.move_til('forward', 0, 'less', 0.3)
+
+
                     break
 
                 # allow the callback functions to run
