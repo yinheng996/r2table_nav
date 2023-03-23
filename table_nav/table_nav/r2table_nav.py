@@ -5,6 +5,7 @@ from geometry_msgs.msg import Twist
 from rclpy.qos import qos_profile_sensor_data
 from sensor_msgs.msg import LaserScan
 from nav_msgs.msg import OccupancyGrid
+from gpiozero import Button
 import numpy as np
 import math
 import cmath
@@ -19,6 +20,7 @@ front_angle = 30
 front_angles = range(-front_angle,front_angle+1,1)
 scanfile = 'lidar.txt'
 mapfile = 'map.txt'
+limit_switch = Button(23, pull_up=True)
 
 def euler_from_quaternion(x, y, z, w): # code from https://automaticaddison.com/how-to-convert-a-quaternion-into-euler-angles-in-python/
     """
@@ -247,7 +249,7 @@ class TableNav(Node):
                     self.move_til('backward', 180, 'less', 0.5)
 
                     #calibrate
-                    self.calibrateR(self)
+                    self.calibrateR()
                     #left_wall=True
 
                     #rotate 90 degrees anticlockwise
@@ -315,7 +317,6 @@ class TableNav(Node):
 
                     #move forward until distance at 0 degrees is less than 0.3
                     self.move_til('forward', 0, 'less', 0.3)
-
 
                     break
 
