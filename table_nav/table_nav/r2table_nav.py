@@ -99,7 +99,6 @@ class TableNav(Node):
         # print to file
         np.savetxt(mapfile, self.occdata)
 
-
     def scan_callback(self, msg):
         # create numpy array
         self.laser_range = np.array(msg.ranges)
