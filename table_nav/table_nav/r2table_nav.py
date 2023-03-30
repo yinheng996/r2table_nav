@@ -17,6 +17,7 @@ lidar_offset = 0.2
 stop_distance = 0.1 + lidar_offset
 front_angle = 30
 front_angles = range(-front_angle,front_angle+1,1)
+buffer_with_
 scanfile = 'lidar.txt'
 mapfile = 'map.txt'
 
@@ -74,7 +75,6 @@ class TableNav(Node):
         self.roll, self.pitch, self.yaw = euler_from_quaternion(orientation_quat.x, orientation_quat.y, orientation_quat.z, orientation_quat.w)
 
     def occ_callback(self, msg):
-        # self.get_logger().info('In occ_callback')
         # create numpy array
         msgdata = np.array(msg.data)
         # compute histogram to identify percent of bins with -1
@@ -283,6 +283,7 @@ class TableNav(Node):
         self.move_til('backward', 0, 'more', 0.5)
         self.right_angle_rotate('anticlockwise')
         self.right_angle_rotate('anticlockwise')
+
         #insert calibration here
         self.move_til('forward', 0, 'more', 1.0)
         #insert docking here
@@ -298,7 +299,9 @@ class TableNav(Node):
         self.stop_at_table()
 
     def from_table2(self):
+
         self.move_til('backward', 0, 'more', 0.5)
+
         self.rotatebot(90)
         self.move_til('forward', 0, 'less', 0.8)
         self.rotatebot(90)
@@ -343,7 +346,7 @@ class TableNav(Node):
         try:
             while rclpy.ok():
                 if self.laser_range.size != 0:
-                    
+
                     #to include while loop to check bot status
                     self.to_table1()
                     #to include check limit switch status
