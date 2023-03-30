@@ -5,23 +5,28 @@ from geometry_msgs.msg import Twist
 from rclpy.qos import qos_profile_sensor_data
 from sensor_msgs.msg import LaserScan
 from nav_msgs.msg import OccupancyGrid
-from gpiozero import Button
+import RPi.GPIO as GPIO
 import numpy as np
 import math
 import cmath
 import time
 
 # constants
-rotatechange = 0.1 
+rotatechange = 0.1
 speedchange = 0.05
 occ_bins = [-1, 0, 100, 101]
-stop_distance = 0.10
+stop_distance = 0.25
 front_angle = 30
 front_angles = range(-front_angle,front_angle+1,1)
-buffer_with_
 scanfile = 'lidar.txt'
 mapfile = 'map.txt'
-limit_switch = Button(23, pull_up=True)
+
+# Set up the GPIO mode and pin number
+GPIO.setmode(GPIO.BCM)
+limit_switch_pin = 23
+# Set up the limit switch as an input
+GPIO.setup(limit_switch_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+
 
 def euler_from_quaternion(x, y, z, w): # code from https://automaticaddison.com/how-to-convert-a-quaternion-into-euler-angles-in-python/
     """
@@ -106,6 +111,7 @@ class TableNav(Node):
 
     # function to rotate the TurtleBot
     def rotatebot(self, rot_angle):
+        # self.get_logger().info('In rotatebot')
         # create Twist object
         twist = Twist()
         
@@ -113,7 +119,8 @@ class TableNav(Node):
         current_yaw = self.yaw
         # log the info
         self.get_logger().info('Current: %f' % math.degrees(current_yaw))
-        # using complex numbers to avoid problems when the angles go from 360 to 0, or from -180 to 180
+        # we are going to use complex numbers to avoid problems when the angles go from
+        # 360 to 0, or from -180 to 180
         c_yaw = complex(math.cos(current_yaw),math.sin(current_yaw))
         # calculate desired yaw
         target_yaw = current_yaw + math.radians(rot_angle)
@@ -124,17 +131,18 @@ class TableNav(Node):
         c_change = c_target_yaw / c_yaw
         # get the sign of the imaginary component to figure out which way we have to turn
         c_change_dir = np.sign(c_change.imag)
-
-        # publish rotation command
-        twist.linear.x, twist.angular.z = 0.0, c_change_dir * rotatechange
+        # set linear speed to zero so the TurtleBot rotates on the spot
+        twist.linear.x = 0.0
+        # set the direction to rotate
+        twist.angular.z = c_change_dir * rotatechange
+        # start rotation
         self.publisher_.publish(twist)
 
-
         # we will use the c_dir_diff variable to see if we can stop rotating
+        c_dir_diff = c_change_dir
+        # self.get_logger().info('c_change_dir: %f c_dir_diff: %f' % (c_change_dir, c_dir_diff))
         # if the rotation direction was 1.0, then we will want to stop when the c_dir_diff
         # becomes -1.0, and vice versa
-
-        c_dir_diff = c_change_dir
         while(c_change_dir * c_dir_diff > 0):
             # allow the callback functions to run
             rclpy.spin_once(self)
@@ -149,10 +157,36 @@ class TableNav(Node):
             # self.get_logger().info('c_change_dir: %f c_dir_diff: %f' % (c_change_dir, c_dir_diff))
 
         self.get_logger().info('End Yaw: %f' % math.degrees(current_yaw))
-        # stop the rotation
+        # set the rotation speed to 0
         twist.angular.z = 0.0
+        # stop the rotation
         self.publisher_.publish(twist)
 
+    def calibrateR(self):
+        if ((self.laser_range[250]/1.064) - self.laser_range[270]) <= 0.001 and ((self.laser_range[290]/1.064) - self.laser_range[270]) <= 0.001:
+            print(self.laser_range[250],self.laser_range[270],self.laser_range[290])
+            print("Aligned")
+            return
+        else:
+            if self.laser_range[np.nanargmin(self.laser_range[230:310])] < self.laser_range[270]:
+                print(self.laser_range[270],np.nanargmin(self.laser_range[230:310]))
+                print("Turning left")
+                self.rotatebot(360 - (270 - np.nanargmin(self.laser_range[230:310])))
+            else:
+                print("Turning right")
+                print(self.laser_range[270],self.laser_range[230:310])
+                self.rotatebot(np.nanargmin(self.laser_range[230:310]) - 270)
+        return self.calibrateR()
+    
+    def limit_switch_stat():
+        # Read the status of the limit switch
+        limit_switch_status = GPIO.input(limit_switch_pin)
+        
+        # Print the status to the console
+        while True:
+            print(limit_switch_status)
+            time.sleep(2)
+            limit_switch_status = GPIO.input(limit_switch_pin)
 
     # all-in-one function for linear movement
 
@@ -165,8 +199,8 @@ class TableNav(Node):
 
         self.get_logger().info('Moving %s until distance at %s degrees is %s than %f' % (direction, angle, more_less, dist))
 
-        move_dict = {'forward': 0.1, 
-                    'backward': -0.1,
+        move_dict = {'forward': 0.07, 
+                    'backward': -0.07,
                     'more': True,
                     'less': False}
 
@@ -193,19 +227,6 @@ class TableNav(Node):
         twist.linear.x = 0.0
         time.sleep(1)
         self.publisher_.publish(twist)
-
-    def calibrateR(self):
-        if (self.laser_range[250]/1.064) - self.laser_range[270] <= 1 and (self.laser_range[290]/1.064) - self.laser_range[270] <= 1:
-            print("Aligned")
-            return
-        else:
-            if self.laser_range[np.nanargmin(self.laser_range[230:310])] < self.laser_range[270]:
-                print("Turning left")
-                self.rotatebot(360 - (270 - np.nanargmin(self.laser_range[230:310])))
-            else:
-                print("Turning right")
-                self.rotatebot(np.nanargmin(self.laser_range[230:310]) - 270)
-        return self.calibrateR(self)
 
 
     #function to simplify right angle rotation
@@ -237,40 +258,54 @@ class TableNav(Node):
         angle = np.nanargmin(self.laser_range[starting_angle:ending_angle])
         self.get_logger().info('Table located: %d %f m' % (angle, self.laser_range[angle]))
         self.rotatebot(angle)
-        self.move_til('forward', 0, 'less', 0.3)
+        self.move_til('forward', 0, 'less', 0.1+stop_distance)
 
-        while not self.limit_switch:
-            self.stopbot()
+        # while not self.limit_switch:
+        #     self.stopbot()
 
-        while rclpy.ok():
-            rclpy.spin_once(self)
-            if self.limit_switch:
-                break
+        # while rclpy.ok():
+        #     rclpy.spin_once(self)
+        #     if self.limit_switch:
+        #         break
         
-        self.move_til('backward', 0, 'less', 0.5)
-        self.rotatebot(-angle)
-        self.move_til('backward', 0, 'less', 0.5)
+        # self.move_til('backward', 0, 'less', 0.5)
+        # self.rotatebot(-angle)
+        # self.move_til('backward', 0, 'less', 0.5)
 
     def stop_at_table(self):
-        pass
+        lri = (self.laser_range[front_angles]<float(stop_distance)).nonzero()
+        # self.get_logger().info('Distances: %s' % str(lri))
+
+        # if the list is not empty
+        if(len(lri[0])>0):
+            # stop moving
+            self.stopbot()
+            # find direction with the largest distance from the Lidar
+            # rotate to that direction
+            # start moving
+            self.pick_direction()
     
     def to_table1(self):
         self.move_til('backward', 0,'more', 1.0)
-        self.rotatebot(180)
-        #insert celibration here
-        self.stop_at_table()
+        self.right_angle_rotate('clockwise')
+        self.right_angle_rotate('clockwise')
+        self.calibrateR()
+        self.move_til('forward', 0, 'less', 0.1+stop_distance)
+
+        #self.stop_at_table()
 
     def from_table1(self):
-        self.move_til('backward', 0, 'less', 0.5)
-        self.rotatebot(180)
-        #insert calibration here
+        self.move_til('backward', 0, 'more', 0.5)
+        self.right_angle_rotate('anticlockwise')
+        self.right_angle_rotate('anticlockwise')
+        self.calibrateR()
         self.move_til('forward', 0, 'more', 1.0)
         #insert docking here
 
     def to_table2(self):
         self.move_til('backward', 0, 'more', 1.0)
         self.rotatebot(180)
-        #insert calibration here
+        self.calibrateR()
         self.move_til('forward', 0, 'less', 0.7)
         self.rotatebot(270)
         self.move_til('forward', 0, 'less', 1.2)
@@ -278,18 +313,18 @@ class TableNav(Node):
         self.stop_at_table()
 
     def from_table2(self):
-        self.move_til('backward', 0, 'less', 0.5)
+        self.move_til('backward', 0, 'more', 0.5)
         self.rotatebot(90)
         self.move_til('forward', 0, 'less', 0.8)
         self.rotatebot(90)
-        #insert calibration here
+        self.calibrateR()
         self.move_til('forward', 0, 'more', 1.0)
         #insert docking here
 
     def to_table3(self):
         self.move_til('backward', 0, 'more', 1.0)
         self.rotatebot(90)
-        #insert calibration here
+        self.calibrateR()
         self.move_til('forward', 180, 'less', 1.2)
         self.rotatebot(90)
         self.stop_at_table()
@@ -297,7 +332,7 @@ class TableNav(Node):
     def to_table4(self):
         self.move_til('backward', 0, 'more', 1.0)
         self.rotatebot(90)
-        #insert calibration here
+        self.calibrateR()
         self.move_til('forward', 0, 'less', 2.3)
         self.rotatebot(90)
         self.stop_at_table()
@@ -305,7 +340,7 @@ class TableNav(Node):
     def to_table5(self):
         self.move_til('backward', 0, 'more', 1.0)
         self.rotatebot(90)
-        #insert calibration here
+        self.calibrateR()
         self.move_til('forward', 0, 'less', 0.5)
         self.rotatebot(90)
         self.stop_at_table()
@@ -313,7 +348,7 @@ class TableNav(Node):
     def from_table3_4_5(self):
         self.move_til('backward',180, 'less', 1.0)
         self.rotatebot(90)
-        #insert calibration here
+        self.calibrateR()
         self.move_til('forward', 0, 'less', 0.5)
         self.rotatebot(90)
         #insert docking here
@@ -339,6 +374,54 @@ class TableNav(Node):
         # Ctrl-c detected
         finally:
             self.stopbot()
+    
+    def table5(self):
+        self.get_logger().info('Navigating to Table 1')
+        try:
+            while rclpy.ok():
+                if self.laser_range.size != 0:
+                    
+                    #to include while loop to check bot status
+                    self.to_table5()
+                    #to include check limit switch status
+                    self.from_table3_4_5()
+                    #to include update bot status
+
+                # allow the callback functions to run
+                rclpy.spin_once(self)
+
+        except Exception as e:
+            print(e)
+        
+        # Ctrl-c detected
+        finally:
+            self.stopbot()
+
+    def find_table6(self):
+        self.get_logger().info('finding the table 6')
+
+        try:
+            while rclpy.ok():
+                if self.laser_range.size != 0:
+                    
+                    #self.calibrateR()
+                    '''while True:
+                        print(GPIO.input(limit_switch_pin))
+                        time.sleep(3)'''
+                    self.locate_table6(0,90)
+                    # Read the status of the limit switch
+
+                    #to include while loop to check bot status
+                    
+                rclpy.spin_once(self)
+
+        except Exception as e:
+            print(e)
+        
+        # Ctrl-c detected
+        finally:
+            self.stopbot()
+
 
     def table6(self):
             
@@ -396,9 +479,8 @@ def main(args=None):
     #selection = int(input(" Please enter the table number you would like to go to (1/2/3/4/5): "))
     #execute table function based on user input
     #table_dict[selection]()
-
     #execute function to navigate to table 1
-    table_nav.table1()
+    table_nav.find_table6()
 
     # destroy the node explicitly
     table_nav.destroy_node()
