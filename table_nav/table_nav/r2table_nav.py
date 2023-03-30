@@ -11,10 +11,10 @@ import cmath
 import time
 
 # constants
-rotatechange = 0.1 
+rotatechange = 0.1
 speedchange = 0.05
 occ_bins = [-1, 0, 100, 101]
-stop_distance = 0.10
+stop_distance = 0.25
 front_angle = 30
 front_angles = range(-front_angle,front_angle+1,1)
 buffer_with_
@@ -92,7 +92,6 @@ class TableNav(Node):
         # print to file
         np.savetxt(mapfile, self.occdata)
 
-
     def scan_callback(self, msg):
         # create numpy array
         self.laser_range = np.array(msg.ranges)
@@ -104,6 +103,7 @@ class TableNav(Node):
 
     # function to rotate the TurtleBot
     def rotatebot(self, rot_angle):
+        # self.get_logger().info('In rotatebot')
         # create Twist object
         twist = Twist()
         
@@ -126,7 +126,6 @@ class TableNav(Node):
         # publish rotation command
         twist.linear.x, twist.angular.z = 0.0, c_change_dir * rotatechange
         self.publisher_.publish(twist)
-
 
         # we will use the c_dir_diff variable to see if we can stop rotating
         # if the rotation direction was 1.0, then we will want to stop when the c_dir_diff
