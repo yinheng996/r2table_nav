@@ -17,7 +17,6 @@ lidar_offset = 0.2
 stop_distance = 0.1 + lidar_offset
 front_angle = 30
 front_angles = range(-front_angle,front_angle+1,1)
-buffer_with_
 scanfile = 'lidar.txt'
 mapfile = 'map.txt'
 
@@ -374,20 +373,6 @@ class TableNav(Node):
         self.move_til('forward', 0, 'less', 1.4)
         self.right_angle_rotate('clockwise')
 
-    def table1(self):
-        self.get_logger().info('Navigating to Table 1')
-        try:
-            while rclpy.ok():
-                if self.laser_range.size != 0:
-
-                    #to include while loop to check bot status
-                    self.to_table1()
-                    #to include check limit switch status
-                    self.from_table1()
-                    #to include update bot status
-
-                # allow the callback functions to run
-                rclpy.spin_once(self)
     def from_table6(self):
         self.move_til('backward', 0, 'less', 0.42)
         self.right_angle_rotate('anticlockwise')
