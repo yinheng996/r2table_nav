@@ -17,7 +17,6 @@ lidar_offset = 0.2
 stop_distance = 0.1 + lidar_offset
 front_angle = 30
 front_angles = range(-front_angle,front_angle+1,1)
-buffer_with_
 scanfile = 'lidar.txt'
 mapfile = 'map.txt'
 
