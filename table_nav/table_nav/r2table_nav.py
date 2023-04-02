@@ -9,6 +9,7 @@ import numpy as np
 import math
 import cmath
 import time
+from paho.mqtt import client as mqtt_client
 
 # constants
 rotation_speed = 0.1 
@@ -19,6 +20,16 @@ front_angle = 30
 front_angles = range(-front_angle,front_angle+1,1)
 scanfile = 'lidar.txt'
 mapfile = 'map.txt'
+table_num = ''
+docking = ''
+
+# MQTT broker settings
+mqtt_broker = "broker.emqx.io"
+mqtt_port = 1883
+mqtt_username = "idpgrp3"
+mqtt_password = "turtlebot"
+mqtt_topic_tablenum = "table_num"
+mqtt_topic_docking = "docking"
 
 def euler_from_quaternion(x, y, z, w): # code from https://automaticaddison.com/how-to-convert-a-quaternion-into-euler-angles-in-python/
     """
@@ -119,17 +130,57 @@ class TableNav(Node):
         # replace 0's with nan
         self.laser_range[self.laser_range==0] = np.nan
 
+    ## Subscribing to MQTT for table_num
+    #These functions handle what happens when the MQTT client connects
+    #to the broker, and what happens then the topic receives a message
+    def connect_mqtt() -> mqtt_client:
+        def on_connect(client, userdata, flags, rc):
+            if rc == 0:
+                print("Connected to MQTT Broker!")
+            else:
+                print("Failed to connect, return code %d\n", rc)
+            
+            client = mqtt_client.Client()
+            client.username_pw_set(mqtt_username, mqtt_password)
+            client.on_connect = on_connect
+            client.connect(mqtt_broker, mqtt_port, 65535)
+            return client
+            
+    #Callback function, it will be triggered when receiving messages
+    def tablenum_subscribe(client: mqtt_client):
+        def on_message(client, userdata, msg):
+            print(f"Received '{msg.payload.decode()}' from '{msg.mqtt_topic}' topic")
+            #print(f"{msg.topic} {msg.payload}")
+        client.subscribe(mqtt_topic_tablenum)
+        client.on_message = on_message
+        return table_num == on_message
+
     def table_callback(self, msg):
-        #to return table number jeanette
-        pass
+        client = connect_mqtt()
+        tablenum_subscribe(client)
+        # set the network loop blocking, it will not actively end the program before calling disconnect() or the program crash
+        client.loop_forever()
+        return table_num
 
     def bot_limit_callback(self, msg):
         #to return True value when limit switch is pressed, False otherwise
         pass
 
+    #Callback function, it will be triggered when receiving messages
+    def docking_subscribe(client: mqtt_client):
+        def on_message(client, userdata, msg):
+            print(f"Received '{msg.payload.decode()}' from '{msg.mqtt_topic}' topic")
+            #print(f"{msg.topic} {msg.payload}")
+        client.subscribe(mqtt_topic_docking)
+        client.on_message = on_message
+        return docking == on_message
+
     def disp_limit_callback(self, msg):
-        #to return True value when limit switch is pressed, False otherwise
-        pass
+        client = connect_mqtt()
+        docking_subscribe(client)
+        # set the network loop blocking, it will not actively end the program before calling disconnect() or the program crash
+        client.loop_forever()
+        return docking
 
     def ldr_callback(self, msg):
         #to return True value when LDR detects line, False otherwise
