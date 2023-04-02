@@ -21,13 +21,6 @@ front_angles = range(-front_angle,front_angle+1,1)
 scanfile = 'lidar.txt'
 mapfile = 'map.txt'
 
-# Set up the GPIO mode and pin number
-GPIO.setmode(GPIO.BCM)
-limit_switch_pin = 23
-# Set up the limit switch as an input
-GPIO.setup(limit_switch_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-
-
 def euler_from_quaternion(x, y, z, w): # code from https://automaticaddison.com/how-to-convert-a-quaternion-into-euler-angles-in-python/
     """
     Convert a quaternion into euler angles (roll, pitch, yaw)
@@ -173,19 +166,9 @@ class TableNav(Node):
                 self.rotatebot(360 - (270 - np.nanargmin(self.laser_range[230:310])))
             else:
                 print("Turning right")
-                print(self.laser_range[270],self.laser_range[230:310])
+                #print(self.laser_range[270],self.laser_range[230:310])
                 self.rotatebot(np.nanargmin(self.laser_range[230:310]) - 270)
         return self.calibrateR()
-    
-    def limit_switch_stat():
-        # Read the status of the limit switch
-        limit_switch_status = GPIO.input(limit_switch_pin)
-        
-        # Print the status to the console
-        while True:
-            print(limit_switch_status)
-            time.sleep(2)
-            limit_switch_status = GPIO.input(limit_switch_pin)
 
     # all-in-one function for linear movement
 
@@ -404,9 +387,6 @@ class TableNav(Node):
                 if self.laser_range.size != 0:
                     
                     #self.calibrateR()
-                    '''while True:
-                        print(GPIO.input(limit_switch_pin))
-                        time.sleep(3)'''
                     self.locate_table6(0,90)
                     # Read the status of the limit switch
 
