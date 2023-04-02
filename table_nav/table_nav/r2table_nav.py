@@ -5,6 +5,8 @@ from geometry_msgs.msg import Twist
 from rclpy.qos import qos_profile_sensor_data
 from sensor_msgs.msg import LaserScan
 from nav_msgs.msg import OccupancyGrid
+from std_msgs.msg import Bool
+#from laptopLS import robot_LS_state
 import numpy as np
 import math
 import cmath
@@ -74,9 +76,8 @@ class TableNav(Node):
         self.table_number = 0
 
         # create subscriber to track bot limit switch
-        # self.bot_limit_subscription = self.create_subscription(Bool,'/bot_limit_switch',self.bot_limit_callback,10)
-        # self.bot_limit_subscription  # prevent unused variable warning
-        # self.bot_limit = False
+        self.bot_limit_subscription = self.create_subscription(Bool,'/bot_limit_switch',self.bot_limit_callback,10)
+        self.bot_limit_subscription  # prevent unused variable warning
 
         #create subscriber to track dispenser limit switch
         # self.disp_limit_subscription = self.create_subscription(Bool,'/disp_limit_switch',self.dist_limit_callback,10)
@@ -125,6 +126,7 @@ class TableNav(Node):
 
     def bot_limit_callback(self, msg):
         #to return True value when limit switch is pressed, False otherwise
+        self.bot_limit = msg.data
         pass
 
     def disp_limit_callback(self, msg):
@@ -204,6 +206,13 @@ class TableNav(Node):
                 #print(self.laser_range[270],self.laser_range[230:310])
                 self.rotatebot(np.nanargmin(self.laser_range[230:310]) - 270)
         return self.calibrateR()
+    
+    def bot_limit_pressed(self):
+        if self.bot_limit == True: 
+            return
+        else:
+            time.sleep(3)
+            return self.bot_limit_pressed()
 
     # all-in-one function for linear movements
     # first input == direction of movement (forward or backward)
@@ -429,8 +438,9 @@ class TableNav(Node):
             while rclpy.ok():
                 # to include if table_num!=0
                 if self.laser_range.size != 0:
-                    #to include check bot limit switch status
-
+                    #calibrate & check bot limit switch status 
+                    '''self.calibrateR()
+                    self.bot_limit_pressed()
                     to_dict[self.table_number]()
                     if self.table_number == 6:
                         self.locate_table6(0, 90)
@@ -438,7 +448,7 @@ class TableNav(Node):
                     from_dict[self.table_number]()
                     #insert docking here
                     #to include check dispenser limit switch status
-                    break #to instead include function to wait for next order
+                    break #to instead include function to wait for next order'''
                 
                 # allow the callback functions to run
                 rclpy.spin_once(self)
