@@ -120,7 +120,7 @@ class TableNav(Node):
         self.laser_range[self.laser_range==0] = np.nan
 
     def table_callback(self, msg):
-        #to return table number
+        #to return table number jeanette
         pass
 
     def bot_limit_callback(self, msg):
