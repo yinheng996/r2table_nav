@@ -192,19 +192,23 @@ class TableNav(Node):
         self.publisher_.publish(twist)
 
     def calibrateR(self):
+        print(self.laser_range[250],self.laser_range[270],self.laser_range[290])
         if ((self.laser_range[250]/1.064) - self.laser_range[270]) <= 0.001 and ((self.laser_range[290]/1.064) - self.laser_range[270]) <= 0.001:
             print(self.laser_range[250],self.laser_range[270],self.laser_range[290])
             print("Aligned")
             return
         else:
-            if self.laser_range[np.nanargmin(self.laser_range[230:310])] < self.laser_range[270]:
-                print(self.laser_range[270],np.nanargmin(self.laser_range[230:310]))
+            #print("differences", self.laser_range[np.nanargmin(self.laser_range[250:290])], self.laser_range[270])
+            print(np.nanargmin(self.laser_range[250:269]),np.nanargmin(self.laser_range[270:290]))
+            if self.laser_range[250] < self.laser_range[270] or self.laser_range[270] < self.laser_range[290]:
+                #print(self.laser_range[270],np.nanargmin(self.laser_range[250:290]))
                 print("Turning left")
-                self.rotatebot(360 - (270 - np.nanargmin(self.laser_range[230:310])))
-            else:
+                self.rotatebot(1)
+                #self.rotatebot(360 - (270 - np.nanargmin(self.laser_range[250:290])))
+            elif self.laser_range[290] < self.laser_range[270] or self.laser_range[270] < self.laser_range[250]:
                 print("Turning right")
-                #print(self.laser_range[270],self.laser_range[230:310])
-                self.rotatebot(np.nanargmin(self.laser_range[230:310]) - 270)
+                self.rotatebot(-1)
+                #self.rotatebot(np.nanargmin(self.laser_range[250:290]) - 270)
         return self.calibrateR()
     
     def bot_limit_pressed(self):
@@ -438,6 +442,9 @@ class TableNav(Node):
             while rclpy.ok():
                 # to include if table_num!=0
                 if self.laser_range.size != 0:
+                    self.calibrateR()
+                    break
+                    #self.calibrateR()
                     #calibrate & check bot limit switch status 
                     '''self.calibrateR()
                     self.bot_limit_pressed()
