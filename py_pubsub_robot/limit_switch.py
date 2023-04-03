@@ -2,7 +2,7 @@ import rclpy
 import RPi.GPIO as GPIO
 import time
 from rclpy.node import Node
-from std_msgs.msg import String
+from std_msgs.msg import Bool
 
 # Set up the GPIO mode and pin number
 GPIO.setmode(GPIO.BCM)
@@ -20,18 +20,17 @@ limit_switch_status = GPIO.input(limit_switch_pin)
     time.sleep(2)
     limit_switch_status = GPIO.input(limit_switch_pin)'''
 
-
 class SwitchPublisher(Node):
 
     def __init__(self):
         super().__init__('Switch_publisher')
-        self.publisher_ = self.create_publisher(String, '/bot_limit_switch', 10)
+        self.publisher_ = self.create_publisher(Bool, '/bot_limit_switch', 10)
         timer_period = 0.5  # seconds
         self.timer = self.create_timer(timer_period, self.timer_callback)
 
     def timer_callback(self):
-        msg = String()
-        msg.data = '"%s"' % GPIO.input(limit_switch_pin)
+        msg = Bool()
+        msg.data = bool(GPIO.input(limit_switch_pin))
         self.publisher_.publish(msg)
         self.get_logger().info('Publishing: "%s"' % msg.data)
 
