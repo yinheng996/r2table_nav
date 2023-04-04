@@ -21,6 +21,7 @@ front_angle = 30
 front_angles = range(-front_angle,front_angle+1,1)
 scanfile = 'lidar.txt'
 mapfile = 'map.txt'
+bot_limit = False
 
 def euler_from_quaternion(x, y, z, w): # code from https://automaticaddison.com/how-to-convert-a-quaternion-into-euler-angles-in-python/
     """
@@ -47,6 +48,7 @@ def euler_from_quaternion(x, y, z, w): # code from https://automaticaddison.com/
 class TableNav(Node):
 
     def __init__(self): 
+        #self.bot_limit == False
         super().__init__('table_nav')
         
         # create publisher for moving TurtleBot
@@ -126,9 +128,9 @@ class TableNav(Node):
 
     def bot_limit_callback(self, msg):
         #to return True value when limit switch is pressed, False otherwise
-        #self.get_logger().info('I heard: "%s"' % msg.data)
-        self.bot_limit = msg.data
-        print(self.bot_limit)
+        #self.get_logger().info('I heard: "%s"' % msg)
+        bot_limit = msg.data
+        print(bot_limit)
         pass
 
     def disp_limit_callback(self, msg):
@@ -194,31 +196,29 @@ class TableNav(Node):
         self.publisher_.publish(twist)
 
     def calibrateR(self):
-        print(self.laser_range[250],self.laser_range[270],self.laser_range[290])
-        if ((self.laser_range[250]/1.064) - self.laser_range[270]) <= 0.001 and ((self.laser_range[290]/1.064) - self.laser_range[270]) <= 0.001:
-            print(self.laser_range[250],self.laser_range[270],self.laser_range[290])
-            print("Aligned")
+        print("3-point dist:",self.laser_range[250],self.laser_range[270],self.laser_range[290])
+        if (abs((self.laser_range[250]/1.064) - self.laser_range[270])) <= 0.01 and (abs((self.laser_range[290]/1.064) - self.laser_range[270])) <= 0.01:
+            print("aligned 3-point:",self.laser_range[250],self.laser_range[270],self.laser_range[290])
             return
         else:
-            #print("differences", self.laser_range[np.nanargmin(self.laser_range[250:290])], self.laser_range[270])
-            print(np.nanargmin(self.laser_range[250:269]),np.nanargmin(self.laser_range[270:290]))
-            if self.laser_range[250] > self.laser_range[270] or self.laser_range[270] > self.laser_range[290]:
-                #print(self.laser_range[270],np.nanargmin(self.laser_range[250:290]))
+            if self.laser_range[250]/1.064 > self.laser_range[270] or self.laser_range[270] > self.laser_range[290]/1.064:
                 print("Turning left")
-                self.rotatebot(1)
+                self.rotatebot(0.5)
                 #self.rotatebot(360 - (270 - np.nanargmin(self.laser_range[250:290])))
-            elif self.laser_range[290] > self.laser_range[270] or self.laser_range[270] > self.laser_range[250]:
+            elif self.laser_range[290]/1.064 > self.laser_range[270] or self.laser_range[270] > self.laser_range[250]/1.064:
                 print("Turning right")
-                self.rotatebot(-1)
+                self.rotatebot(-0.5)
                 #self.rotatebot(np.nanargmin(self.laser_range[250:290]) - 270)
         return self.calibrateR()
     
     def bot_limit_pressed(self):
-        if self.bot_limit == True: 
+        bot_limit = self.bot_limit_callback().msg
+        if bot_limit == True: 
+            print("drink filled")
             return
         else:
             print("waiting for LS")
-            time.sleep(3)
+            time.sleep(2)
             return self.bot_limit_pressed()
 
     # all-in-one function for linear movements
@@ -443,11 +443,13 @@ class TableNav(Node):
 
         try:
             while rclpy.ok():
+                #self.bot_limit_pressed()
+                #break
                 # to include if table_num!=0
                 if self.laser_range.size != 0:
-                    self.bot_limit_pressed()
+                    self.get_logger().info(self.laser_range[0])
                     #self.calibrateR()
-                    #break
+                    
                     #calibrate & check bot limit switch status 
                     '''self.calibrateR()
                     self.bot_limit_pressed()
