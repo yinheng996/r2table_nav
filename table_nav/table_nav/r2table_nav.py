@@ -21,7 +21,6 @@ front_angle = 30
 front_angles = range(-front_angle,front_angle+1,1)
 scanfile = 'lidar.txt'
 mapfile = 'map.txt'
-bot_limit = False
 
 def euler_from_quaternion(x, y, z, w): # code from https://automaticaddison.com/how-to-convert-a-quaternion-into-euler-angles-in-python/
     """
@@ -48,7 +47,6 @@ def euler_from_quaternion(x, y, z, w): # code from https://automaticaddison.com/
 class TableNav(Node):
 
     def __init__(self): 
-        #self.bot_limit == False
         super().__init__('table_nav')
         
         # create publisher for moving TurtleBot
@@ -78,8 +76,10 @@ class TableNav(Node):
         self.table_number = 0
 
         # create subscriber to track bot limit switch
-        self.bot_limit_subscription = self.create_subscription(Bool,'/bot_limit_switch',self.bot_limit_callback,10)
+        # node = rclpy.create_node('bot_limit_subscriber')
+        self.bot_limit_subscription = self.create_subscription(Bool,'bot_limit_switch',self.bot_limit_callback,10)
         self.bot_limit_subscription  # prevent unused variable warning
+        self.bot_limit = False
 
         #create subscriber to track dispenser limit switch
         # self.disp_limit_subscription = self.create_subscription(Bool,'/disp_limit_switch',self.dist_limit_callback,10)
@@ -128,10 +128,11 @@ class TableNav(Node):
 
     def bot_limit_callback(self, msg):
         #to return True value when limit switch is pressed, False otherwise
-        #self.get_logger().info('I heard: "%s"' % msg)
-        bot_limit = msg.data
-        print(bot_limit)
-        pass
+        self.get_logger().info('I heard: "%s"' % msg.data)
+        # global bot_limit
+        self.bot_limit = msg.data
+        # bot_limit = msg.data
+        
 
     def disp_limit_callback(self, msg):
         #to return True value when limit switch is pressed, False otherwise
@@ -212,14 +213,25 @@ class TableNav(Node):
         return self.calibrateR()
     
     def bot_limit_pressed(self):
-        bot_limit = self.bot_limit_callback().msg
-        if bot_limit == True: 
+        print(str(self.bot_limit))
+        rclpy.spin_once(self)
+        if self.bot_limit == True: 
             print("drink filled")
-            return
+            return True
         else:
             print("waiting for LS")
-            time.sleep(2)
+            time.sleep(1)
+            rclpy.spin_once(self)
             return self.bot_limit_pressed()
+    
+    '''def check_bot_limit_loop(self):
+        while True:
+            with self.bot_limit_lock:
+                print("checking...", self.bot_limit)
+                if self.bot_limit == True:
+                    print("Bot limit pressed!")
+                    return True
+            time.sleep(1)'''
 
     # all-in-one function for linear movements
     # first input == direction of movement (forward or backward)
@@ -443,17 +455,22 @@ class TableNav(Node):
 
         try:
             while rclpy.ok():
+                # rclpy.spin_once(self)
+                self.bot_limit_pressed()
+                break
+                #print(self.check_bot_limit_loop())
                 #self.bot_limit_pressed()
-                #break
+                '''while bot_limit != True:
+                    print(bot_limit)
+                    print("waiting")
+                    time.sleep(1)
+                print("pressed")'''               
                 # to include if table_num!=0
-                if self.laser_range.size != 0:
-                    self.get_logger().info(self.laser_range[0])
+                #if self.laser_range.size != 0:
+                    #self.get_logger().info(self.laser_range[0])
                     #self.calibrateR()
-                    
                     #calibrate & check bot limit switch status 
-                    '''self.calibrateR()
-                    self.bot_limit_pressed()
-                    to_dict[self.table_number]()
+                '''to_dict[self.table_number]()
                     if self.table_number == 6:
                         self.locate_table6(0, 90)
                     #to include check bot limit switch status
@@ -463,7 +480,7 @@ class TableNav(Node):
                     break #to instead include function to wait for next order'''
                 
                 # allow the callback functions to run
-                rclpy.spin_once(self)
+            rclpy.spin_once(self)
             
         except Exception as e:
             print(e)
