@@ -6,7 +6,6 @@ from rclpy.qos import qos_profile_sensor_data
 from sensor_msgs.msg import LaserScan
 from nav_msgs.msg import OccupancyGrid
 from std_msgs.msg import Bool
-#from laptopLS import robot_LS_state
 import numpy as np
 import math
 import cmath
@@ -128,10 +127,8 @@ class TableNav(Node):
 
     def bot_limit_callback(self, msg):
         #to return True value when limit switch is pressed, False otherwise
-        self.get_logger().info('I heard: "%s"' % msg.data)
-        # global bot_limit
+        #self.get_logger().info('I heard: "%s"' % msg.data)
         self.bot_limit = msg.data
-        # bot_limit = msg.data
         
 
     def disp_limit_callback(self, msg):
@@ -212,26 +209,15 @@ class TableNav(Node):
                 #self.rotatebot(np.nanargmin(self.laser_range[250:290]) - 270)
         return self.calibrateR()
     
-    def bot_limit_pressed(self):
-        print(str(self.bot_limit))
+    def bot_limit_status(self):
+        #print(self.bot_limit)
         rclpy.spin_once(self)
         if self.bot_limit == True: 
             print("drink filled")
             return True
-        else:
-            print("waiting for LS")
-            time.sleep(1)
-            rclpy.spin_once(self)
-            return self.bot_limit_pressed()
-    
-    '''def check_bot_limit_loop(self):
-        while True:
-            with self.bot_limit_lock:
-                print("checking...", self.bot_limit)
-                if self.bot_limit == True:
-                    print("Bot limit pressed!")
-                    return True
-            time.sleep(1)'''
+        elif self.bot_limit == False:
+            print("drink removed")
+            return False
 
     # all-in-one function for linear movements
     # first input == direction of movement (forward or backward)
@@ -455,16 +441,8 @@ class TableNav(Node):
 
         try:
             while rclpy.ok():
-                # rclpy.spin_once(self)
-                self.bot_limit_pressed()
-                break
-                #print(self.check_bot_limit_loop())
-                #self.bot_limit_pressed()
-                '''while bot_limit != True:
-                    print(bot_limit)
-                    print("waiting")
-                    time.sleep(1)
-                print("pressed")'''               
+                #rclpy.spin_once(self)
+                self.bot_limit_status()           
                 # to include if table_num!=0
                 #if self.laser_range.size != 0:
                     #self.get_logger().info(self.laser_range[0])
