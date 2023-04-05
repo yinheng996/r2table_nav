@@ -12,13 +12,7 @@ limit_switch_pin = 23
 GPIO.setup(limit_switch_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
 # Read the status of the limit switch
-limit_switch_status = GPIO.input(limit_switch_pin)
-
-# Print the status to the console
-'''while True:
-    print(limit_switch_status)
-    time.sleep(2)
-    limit_switch_status = GPIO.input(limit_switch_pin)'''
+# limit_switch_status = GPIO.input(limit_switch_pin)
 
 class SwitchPublisher(Node):
 

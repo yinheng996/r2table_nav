@@ -218,6 +218,8 @@ class TableNav(Node):
         elif self.bot_limit == False:
             print("drink removed")
             return False
+        else:
+            return self.bot_limit_status()
 
     # all-in-one function for linear movements
     # first input == direction of movement (forward or backward)
