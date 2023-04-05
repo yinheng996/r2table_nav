@@ -12,12 +12,15 @@ import time
 from paho.mqtt import client as mqtt_client
 
 # constants
-rotation_speed = 0.1 
+rotation_speed = 0.2
 occ_bins = [-1, 0, 100, 101] 
 lidar_offset = 0.21
-lidar_offset_b = 0.1
-stop_distance = 0.2 + lidar_offset
-stop_distance_b = 0.2 + lidar_offset_b
+lidar_offset_b = 0.10
+stop_distance = 0.1 + lidar_offset
+stop_distance_b = 0.1 + lidar_offset_b
+centre_of_rotation_f_offset = 0.15
+centre_of_rotation_b_offset = 0.12
+homing_from_wall = 0.5
 front_angle = 30
 front_angles = range(-front_angle,front_angle+1,1)
 back_angles = range(150, 210, 1)
@@ -61,7 +64,7 @@ def subscribe(client: mqtt_client):
                 if msg.topic == mqtt_topic_tablenum:
                     table_num = int(msg.payload.decode()[-2])
                     table_nav = TableNav()
-                    time.sleep(10)
+                    time.sleep(8)
                     table_nav.nav(table_num)
                     table_nav.destroy_node()
                 if msg.topic == mqtt_topic_docking:
@@ -126,25 +129,15 @@ class TableNav(Node):
         self.scan_subscription  # prevent unused variable warning
         self.laser_range = np.array([])
 
-        # create subscriber to receive table number through MQTT
-        # self.table_subscription = self.create_subscription(Int,'/table_number',self.table_callback,10)
-        # self.table_subscription  # prevent unused variable warning
-
         # create subscriber to track bot limit switch
         # self.bot_limit_subscription = self.create_subscription(Bool,'/bot_limit_switch',self.bot_limit_callback,10)
         # self.bot_limit_subscription  # prevent unused variable warning
         # self.bot_limit = False
 
-        #create subscriber to track dispenser limit switch
-        # self.disp_limit_subscription = self.create_subscription(Bool,'/disp_limit_switch',self.dist_limit_callback,10)
-        # self.disp_limit_subscription  # prevent unused variable warning
-        # self.disp_limit = False
-
         # create subscriber to track LDR for line following
         # self.ldr_subscription = self.create_subscription(Bool,'/ldr',self.ldr_callback,10)
         # self.ldr_subscription  # prevent unused variable warning
         # self.ldr = False
-
 
     def odom_callback(self, msg):
         orientation_quat =  msg.pose.pose.orientation
@@ -176,15 +169,7 @@ class TableNav(Node):
         # replace 0's with nan
         self.laser_range[self.laser_range==0] = np.nan
 
-    def table_callback(self, msg):
-        #to return table number jeanette
-        pass
-
     def bot_limit_callback(self, msg):
-        #to return True value when limit switch is pressed, False otherwise
-        pass
-
-    def disp_limit_callback(self, msg):
         #to return True value when limit switch is pressed, False otherwise
         pass
 
@@ -249,40 +234,60 @@ class TableNav(Node):
     # all-in-one function for linear movements
     # first input == direction of movement (forward or backward)
     # second input == angle to check (0, 90, 180, 270)
-    # third == check if more or less than the input distance (more or less)
-    # fourth == distance to check
-    def move_til(self, direction, angle, more_less, dist):
-
-        self.get_logger().info('Moving %s until distance at %s degrees is %s than %f' % (direction, angle, more_less, dist))
-
-        move_dict = {'forward': 0.07, 
-                    'backward': -0.07,
-                    'more': True,
-                    'less': False}
+    # third input == check if more or less than the input distance (more or less)
+    # fourth input == distance to check
+    # fifth input == point of reference (lidar or front, back, centre of rotation from front, centre of rotation from back or lidar)
+    def move_til(self, direction, angle, more_less, dist, pt_of_ref):
+        self.get_logger().info('Moving %s until distance at %s degrees is %s than %s from %s' % (direction, angle, more_less, dist, pt_of_ref))
+        
+        move_dict = {'forward': 1, 'backward': -1, 'more': True, 'less': False}
+        speed_dict = {True: 0.20, False: 0.10}
 
         # create Twist object, publish movement
         twist = Twist()
-        twist.linear.x,twist.angular.z = move_dict[direction],0.0
+        print(self.laser_range[angle]>0.7)
+        twist.linear.x = move_dict[direction] * speed_dict[self.laser_range[angle] > 0.7]  # initial speed
+        print(twist.linear.x)
+        twist.angular.z = 0.0
         time.sleep(1)
         self.publisher_.publish(twist)
-
+        
+        #rebasing the distance based on the point of reference
+        if pt_of_ref == 'front':
+            dist += lidar_offset
+        elif pt_of_ref == 'back':
+            dist += lidar_offset_b + 0.15
+        elif pt_of_ref == 'centre of rotation from front':
+            dist += (centre_of_rotation_f_offset-lidar_offset)
+        elif pt_of_ref == 'centre of rotation from back':
+            dist += (centre_of_rotation_b_offset-lidar_offset_b)
+        
+        print('Distance to check: %s' % dist)
+        
         self.get_logger().info('Linear movement initiated')
-
+        
         # create parameter to check distance
-        check_dist = self.laser_range[angle] - lidar_offset
+        check_dist = self.laser_range[angle]
+        
         while math.isnan(check_dist) or (((not math.isnan(check_dist)) and (check_dist< dist)) == move_dict[more_less]):
-
             #allow the callback functions to run
             rclpy.spin_once(self)
-            check_dist = self.laser_range[angle] - lidar_offset
-
+            
+            # update speed based on distance
+            if abs(twist.linear.x) > 0.10 and self.laser_range[angle] < 0.7:
+                print('adjusting speed')
+                twist.linear.x = move_dict[direction] * speed_dict[False]
+                self.publisher_.publish(twist)
+            
+            check_dist = self.laser_range[angle]
+            
             # log the info
             self.get_logger().info('Distance at %s degrees: %f' % (angle, check_dist))
-
+        
         # stop moving
-        twist.linear.x = 0.0
-        time.sleep(1)
-        self.publisher_.publish(twist)
+        self.stopbot()
+
+
 
     # function to simplify right angle rotations
     def right_angle_rotate(self, orientation):
@@ -311,25 +316,37 @@ class TableNav(Node):
         opposite = hypotenuse * math.sin(angle)
 
         self.get_logger().info('Table located: %d %f m' % (angle, hypotenuse))
+
+        #case 1: opposite is small enuf that there is no need to move laterally
+        #case 1a: opposite is small enuf that there is no need to rotate at all
+
+        #case 2: adjacent is small enuf that there is no need to move forward
+        #case 2a: adjacent is small enuf that there is no need to rotate at all
+
+        #case 3: both are small enuf that there is no need to move forward or laterally
+        #case 3a: both are small enuf that there is no need to rotate at all
         
         # move forward by the adjacent side
-        self.move_til('forward', 0, 'less', self.laser_range[0]-adjacent-lidar_offset-0.2)
+        self.move_til('forward', 0, 'less', self.laser_range[0]-adjacent-lidar_offset-0.2, 'center of rotation from front')
         # rotate 90 degrees anticlockwise
         self.right_angle_rotate('anticlockwise')
         # move forward until distance at 0 degrees is less than 0.1m
-        self.move_til('forward', 0, 'less', 0.2)
+        self.stop_at_table('front')
         self.stopbot()
 
     def stop_at_table(self, side_facing_table):
+        self.get_logger().info('Stopping at table')
         if side_facing_table == 'front': 
             comparison_range = front_angles
             stop = stop_distance
             running_speed = 0.03
+            print("front")
 
         else:
             comparison_range = back_angles
             stop = stop_distance_b
             running_speed = -0.03
+            print("back")
 
         # check if approaching table
         lri = (self.laser_range[comparison_range]<float(stop)).nonzero()
@@ -339,13 +356,15 @@ class TableNav(Node):
         twist.linear.x,twist.angular.z = running_speed,0.0
         time.sleep(1)
         self.publisher_.publish(twist)
-        
+
         while rclpy.ok():
             if(len(lri[0])>0):
-
+                print("Stopping")
                 #stop moving
                 self.stopbot()
                 break
+            rclpy.spin_once(self)
+            lri = (self.laser_range[comparison_range]<float(stop)).nonzero()
 
     def stopbot(self):
         self.get_logger().info('In stopbot')
@@ -356,113 +375,170 @@ class TableNav(Node):
         self.publisher_.publish(twist)
 
     def calibrateR(self):
-        print("3-point dist:",self.laser_range[250],self.laser_range[270],self.laser_range[290])
-        if (abs((self.laser_range[250]/1.064) - self.laser_range[270])) <= 0.01 and (abs((self.laser_range[290]/1.064) - self.laser_range[270])) <= 0.01:
-            print("aligned 3-point:",self.laser_range[250],self.laser_range[270],self.laser_range[290])
-            return
+        max_attempts = 100
+        for attempt in range(max_attempts):
+            print("Aligning with right wall...")
+            if (abs((self.laser_range[250]/1.064) - self.laser_range[270])) <= 0.01 and (abs((self.laser_range[290]/1.064) - self.laser_range[270])) <= 0.01:
+                print("Aligned")
+                break
+            else:
+                if self.laser_range[250]/1.064 > self.laser_range[270] or self.laser_range[270] > self.laser_range[290]/1.064:
+                    print("Tilting left")
+                    self.rotatebot(0.5)
+                elif self.laser_range[290]/1.064 > self.laser_range[270] or self.laser_range[270] > self.laser_range[250]/1.064:
+                    print("Tilting right")
+                    self.rotatebot(-0.5)
         else:
-            if self.laser_range[250]/1.064 > self.laser_range[270] or self.laser_range[270] > self.laser_range[290]/1.064:
-                print("Turning left")
-                self.rotatebot(0.5)
-                #self.rotatebot(360 - (270 - np.nanargmin(self.laser_range[250:290])))
-            elif self.laser_range[290]/1.064 > self.laser_range[270] or self.laser_range[270] > self.laser_range[250]/1.064:
-                print("Turning right")
-                self.rotatebot(-0.5)
-                #self.rotatebot(np.nanargmin(self.laser_range[250:290]) - 270)
-        return self.calibrateR()
+            print("Failed to align after {} attempts".format(max_attempts))
     
-    def docking(self):
-        self.move_til('forward', 0, 'less', 0.5)
-        self.calibrateR()
+    def undocking(self):
+        # move backwards at 0.03 speed until distance at 0 degrees is more than 0.3m
+        # create Twist object, publish movement
+        twist = Twist()
+        
+        twist.linear.x = 0.05
+        twist.angular.z = 0.0
+        time.sleep(1)
+        self.publisher_.publish(twist)
+        
+        #dist is distance from tip of the robot 
+        dist =  0.25 + lidar_offset
+        check_dist =  self.laser_range[0]
+        # check if distance at 0 degrees is more than 0.3m
+        # ignore nan
+        # stop moving if distance at 0 degrees is more than 0.3m           
 
+        while math.isnan(check_dist) or ((not math.isnan(check_dist)) and (check_dist<dist)):
+            #allow the callback functions to run
+            rclpy.spin_once(self)
+            check_dist = self.laser_range[0]
+            
+            # log the info
+            self.get_logger().info('Distance from dispenser: %f' % (check_dist))
+
+        self.stopbot()
+
+    def docking(self):
+
+        self.get_logger().info('Docking')
+        # check distance at 0 degrees from centre of rotation from front, if greater than 0.5, move forward, if less than 0.5, move backwards
+        # margin of error is 0.02m
+        while rclpy.ok():
+            # create Twist object, publish movement
+            twist = Twist()
+
+            self.get_logger().info(str(self.laser_range[0] - lidar_offset + centre_of_rotation_f_offset))
+
+            if round((self.laser_range[0] - lidar_offset + centre_of_rotation_f_offset),3) > 0.51: 
+                twist.linear.x,twist.angular.z = 0.01,0.0 
+            elif round((self.laser_range[0] - lidar_offset + centre_of_rotation_f_offset),3) < 0.49: 
+                twist.linear.x,twist.angular.z = -0.01,0.0
+            
+            else:
+                twist.linear.x, twist.angular.z = 0.0, 0.0
+                break
+            time.sleep(1)
+            self.publisher_.publish(twist)
+            rclpy.spin_once(self)
+        
+        # rotate 90 degrees anticlockwise
+        self.right_angle_rotate('anticlockwise')
+        self.calibrateR()
+        # move forward until distance at 0 degrees is less than 0.2m
+        # create Twist object, publish movement
+
+            # create Twist object, publish movement
         twist = Twist()
         twist.linear.x,twist.angular.z = 0.01,0.0
         time.sleep(1)
         self.publisher_.publish(twist)
+        
 
-        #move forward until docking becomes true
-        while rclpy.ok():
-            if self.docking == True:
-                self.stopbot()
-                break
+        while self.laser_range[0] > 0.18: #to replace with check dist limit switch
+            rclpy.spin_once(self)
+            twist = Twist()
+            twist.linear.x,twist.angular.z = 0.01,0.0
+            time.sleep(1)
+            self.publisher_.publish(twist)
+
+        self.stopbot()
+        self.get_logger().info('Docked')
+
 
     # defining individual functions for each table
     def to_table1(self):
-        self.move_til('backward', 180, 'less', 0.7)
-        self.calibrateR()
-        self.move_til('backward', 180, 'less', 0.2)
+        self.move_til('backward', 180, 'less', 0.30, 'back') #becomes 16cm and runs at 0.1 speed
+        self.stop_at_table('back')
 
     def from_table1(self):
-        self.move_til('forward', 0, 'less', 0.7)
+        self.move_til('forward', 0, 'less', 0.5, 'front')
+        self.right_angle_rotate('clockwise')
+        self.docking()
 
     def to_table2(self):
-        self.move_til('backward', 180, 'less', 0.7)
-        self.calibrateR()
+        self.move_til('backward', 180, 'less', 0.30, 'back')
         self.right_angle_rotate('anticlockwise')
-        self.move_til('forward', 0, 'less', 1.2)
+        self.move_til('forward', 0, 'less', 1.2, 'center of rotation from front')
         self.right_angle_rotate('anticlockwise')
-        self.move_til('forward', 0, 'less', 0.2)
+        self.stop_at_table('front')
 
     def from_table2(self):
-        self.move_til('backward', 0, 'more', 1.0)
+        self.move_til('backward', 0, 'more', 0.30, 'front')
         self.right_angle_rotate('anticlockwise')
-        self.move_til('forward', 0, 'less', 0.8)
+        self.move_til('forward', 0, 'less', 0.5, 'center of rotation from front')
         self.right_angle_rotate('anticlockwise')
-        self.calibrateR()
-        self.move_til('forward', 0, 'less', 1.0)
+        self.move_til('forward', 0, 'less', 0.5, 'front')
+        self.right_angle_rotate('clockwise')
+        self.docking()
 
     def to_table6(self):
-        self.move_til('backward', 180, 'less', 0.4)
+        self.move_til('backward', 180, 'less', 0.30, 'back')
+        self.right_angle_rotate('anticlockwise')
+        self.move_til('forward', 0, 'less', 0.40, 'center of rotation from front')
+        self.right_angle_rotate('anticlockwise')
+        self.move_til('forward', 0, 'less', 0.40, 'center of rotation from front')
+        self.right_angle_rotate('anticlockwise')
         self.calibrateR()
-        self.right_angle_rotate('anticlockwise')
-        self.move_til('forward', 0, 'less', 0.5)
-        self.right_angle_rotate('anticlockwise')
+        self.move_til('forward', 180, 'less', 0.80, 'back')
         self.calibrateR()
-        self.move_til('forward', 0, 'less', 1.4)
-        self.right_angle_rotate('anticlockwise')
-        self.move_til('forward', 0, 'less', 1.4)
-        self.right_angle_rotate('clockwise')
 
     def from_table6(self):
-        self.move_til('backward', 0, 'less', 0.42)
+        self.move_til('backward', 0, 'less', 0.40, 'centre of rotation from back')
         self.right_angle_rotate('anticlockwise')
-        self.move_til('forward', 0, 'less', 0.5)
+        self.move_til('forward', 0, 'less', 0.30, 'front')
         self.right_angle_rotate('clockwise')
-        self.move_til('forward', 0, 'less', 0.5)
+        self.move_til('forward', 0, 'less', 0.5, 'center of rotation from front')
         self.right_angle_rotate('anticlockwise')
+        self.move_til('forward', 0, 'less', 0.5, 'front')
+        self.right_angle_rotate('clockwise')
+        self.docking()
 
     def to_table3(self):
-        self.move_til('backward', 0, 'more', 1.0)
+        self.undocking()
         self.right_angle_rotate('anticlockwise')
-        #insert calibration here
-        self.move_til('forward', 180, 'more', 1.2)
+        self.move_til('forward', 180, 'more', 1.2, 'center of rotation from back')
         self.right_angle_rotate('anticlockwise')
-        self.move_til('forward', 0, 'less', 0.2)
+        self.stop_at_table()
 
     def to_table4(self):
-        self.move_til('backward', 0, 'more', 1.0)
-        self.calibrateR()
+        self.undocking()
         self.right_angle_rotate('anticlockwise')
-        self.move_til('forward', 0, 'less', 2.3)
-        self.calibrateR()
+        self.move_til('forward', 0, 'less', 1.0, 'center of rotation from front')
         self.right_angle_rotate('anticlockwise')
-        self.move_til('forward', 0, 'less', 0.2)
+        self.stop_at_table()
 
     def to_table5(self):
-        self.move_til('backward', 0, 'more', 1.0)
-        self.calibrateR()
+        self.undocking()
         self.right_angle_rotate('anticlockwise')
-        self.move_til('forward', 0, 'less', 0.5)
-        self.calibrateR()
+        self.move_til('forward', 0, 'less', 0.42, 'center of rotation from front')
         self.right_angle_rotate('anticlockwise')
-        self.move_til('forward', 0, 'less', 0.2)
+        self.stop_at_table()
 
     def from_table3_4_5(self):
-        self.move_til('backward',180, 'less', 1.0)
-        self.calibrateR()
+        self.move_til('backward',180, 'less', 0.4, 'back')
         self.right_angle_rotate('anticlockwise')
-        self.move_til('forward', 0, 'less', 0.5)
-        self.right_angle_rotate('anticlockwise')
+        self.move_til('forward', 0, 'less', 0.5, 'centre of rotation from front')
+        self.docking()
 
     
     # governing function to process table number input and execute corresponding table function
@@ -481,12 +557,13 @@ class TableNav(Node):
                     to_dict[self.table_number]()
                     if self.table_number == 6:
                         self.locate_table6(0, 90)
-                    time.sleep(30)
+                        break
+                    time.sleep(10)
                     #to include check bot limit switch status
                     from_dict[self.table_number]()
-                    self.docking()
+                    #self.docking()
                     #to include check dispenser limit switch status
-                    break #to instead include function to wait for next order
+                    break
                 
                 # allow the callback functions to run
                 rclpy.spin_once(self)
@@ -503,12 +580,39 @@ def main(args=None):
     rclpy.init(args=args)
 
     #run()
-
+    print("Starting node")
+    table_num = int(input("Enter table number: "))
     table_nav = TableNav()
-    table_nav.nav(6)
+    table_nav.nav(table_num)
     table_nav.destroy_node()
     rclpy.shutdown()
 
 
 if __name__ == '__main__':
     main()
+
+
+    #BIG TODO: settle stop_at_table() function
+        #DONE: included offset part
+        #TBC: test offset part #tested  #tested
+    #BIG TODO: settle offset in move_til() function
+        #DONE: added offset part
+        #TBC: test offset part #tested
+    #BIG TODO: settle speed variation in move_til() function
+        #DONE: added speed variation part
+        #TBC: test speed variation part #tested
+
+
+#BIG TODO: settle navigation 
+    #DONE: rerouted all tables
+    #TBC: test all tables
+#BIG TODO: integrate bot limit switch checker
+#BIG TODO: reroute table 6
+    #DONE: changed table 6 logic
+    #TBC: test table 6 logic
+#BIG TODO: check if can initiate more than 1 movement from MQTT
+#BIG TODO: settle docking with LDR
+#BIG TODO: wall following
+
+#new TODO
+# fin up locate table 6
