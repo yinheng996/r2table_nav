@@ -250,21 +250,42 @@ class TableNav(Node):
         # stop the rotation
         self.publisher_.publish(twist)
 
-    def calibrateR(self):
-        print("3-point dist:",self.laser_range[250],self.laser_range[270],self.laser_range[290])
-        if (abs((self.laser_range[250]/1.064) - self.laser_range[270])) <= 0.01 and (abs((self.laser_range[290]/1.064) - self.laser_range[270])) <= 0.01:
-            print("aligned 3-point:",self.laser_range[250],self.laser_range[270],self.laser_range[290])
-            return
-        else:
-            if self.laser_range[250]/1.064 > self.laser_range[270] or self.laser_range[270] > self.laser_range[290]/1.064:
-                print("Turning left")
-                self.rotatebot(0.5)
-                #self.rotatebot(360 - (270 - np.nanargmin(self.laser_range[250:290])))
-            elif self.laser_range[290]/1.064 > self.laser_range[270] or self.laser_range[270] > self.laser_range[250]/1.064:
-                print("Turning right")
-                self.rotatebot(-0.5)
-                #self.rotatebot(np.nanargmin(self.laser_range[250:290]) - 270)
-        return self.calibrateR()
+    '''def follow_wall(self, wall_distance):
+        error = wall_distance - min(self.laser_range[260:280])
+        Kp = 0.5 # proportional gain
+        turn_speed = Kp * error
+        # Set up twist command
+        twist = Twist()
+        twist.linear.x = 0.1 # fixed linear speed
+        twist.angular.z = turn_speed # adjust angular speed based on error
+        print(turn_speed)
+        # Publish twist command
+        self.publisher_.publish(twist)'''
+
+    def follow_wall(distance=0.5, speed=0.2):
+        #rclpy.init_node('wall_follower', anonymous=True)
+        #cmd_vel = rclpy.Publisher('/cmd_vel', Twist, queue_size=10)
+        twist = Twist()
+
+        while rclpy.ok():
+            # Calculate the distance to the wall on the right
+            dist_range = self.laser_range[240:300]
+            right_distance = min(dist_range)
+            # Adjust the robot's velocity based on the distance to the wall
+            if right_distance > distance:
+                # Turn left
+                twist.linear.x = speed
+                twist.angular.z = -speed
+            elif right_distance < distance:
+                # Turn right
+                twist.linear.x = speed
+                twist.angular.z = speed
+            else:
+                # Move straight
+                twist.linear.x = speed
+                twist.angular.z = 0.0
+            # Publish the velocity command
+            cmd_vel.publish(twist)
     
     def bot_limit_status(self):
         #print(self.bot_limit)
@@ -387,6 +408,48 @@ class TableNav(Node):
         time.sleep(1)
         self.publisher_.publish(twist)
 
+    def calibrateF(self):
+        print("3-point dist:",self.laser_range[340],self.laser_range[0],self.laser_range[20])
+        if (abs((self.laser_range[340]/1.064) - self.laser_range[0])) <= 0.01 and (abs((self.laser_range[20]/1.064) - self.laser_range[0])) <= 0.01:
+            print("aligned 3-point:",self.laser_range[340],self.laser_range[0],self.laser_range[20])
+            return
+        else:
+            if self.laser_range[340]/1.064 > self.laser_range[0] or self.laser_range[0] > self.laser_range[20]/1.064:
+                print("Turning left")
+                self.rotatebot(0.5)
+            elif self.laser_range[20]/1.064 > self.laser_range[0] or self.laser_range[0] > self.laser_range[340]/1.064:
+                print("Turning right")
+                self.rotatebot(-0.5)
+        return self.calibrateF()
+    
+    def calibrateB(self):
+        print("3-point dist:",self.laser_range[160],self.laser_range[180],self.laser_range[200])
+        if (abs((self.laser_range[160]/1.064) - self.laser_range[180])) <= 0.01 and (abs((self.laser_range[200]/1.064) - self.laser_range[180])) <= 0.01:
+            print("aligned 3-point:",self.laser_range[160],self.laser_range[180],self.laser_range[200])
+            return
+        else:
+            if self.laser_range[160]/1.064 > self.laser_range[180] or self.laser_range[180] > self.laser_range[200]/1.064:
+                print("Turning left")
+                self.rotatebot(0.5)
+            elif self.laser_range[200]/1.064 > self.laser_range[180] or self.laser_range[180] > self.laser_range[160]/1.064:
+                print("Turning right")
+                self.rotatebot(-0.5)
+        return self.calibrateB()
+
+    def calibrateL(self):
+        print("3-point dist:",self.laser_range[70],self.laser_range[90],self.laser_range[110])
+        if (abs((self.laser_range[70]/1.064) - self.laser_range[90])) <= 0.01 and (abs((self.laser_range[110]/1.064) - self.laser_range[90])) <= 0.01:
+            print("aligned 3-point:",self.laser_range[70],self.laser_range[90],self.laser_range[110])
+            return
+        else:
+            if self.laser_range[70]/1.064 > self.laser_range[90] or self.laser_range[90] > self.laser_range[110]/1.064:
+                print("Turning left")
+                self.rotatebot(0.5)
+            elif self.laser_range[110]/1.064 > self.laser_range[90] or self.laser_range[90] > self.laser_range[70]/1.064:
+                print("Turning right")
+                self.rotatebot(-0.5)
+        return self.calibrateL()
+
     def calibrateR(self):
         print("3-point dist:",self.laser_range[250],self.laser_range[270],self.laser_range[290])
         if (abs((self.laser_range[250]/1.064) - self.laser_range[270])) <= 0.01 and (abs((self.laser_range[290]/1.064) - self.laser_range[270])) <= 0.01:
@@ -506,8 +569,11 @@ class TableNav(Node):
 
         try:
             while rclpy.ok():
-                if self.laser_range.size != 0:
-
+                rclpy.spin_once(self)
+                print("start")
+                print(self.laser_range[270])
+                self.follow_wall(0.25)
+                '''if self.laser_range.size != 0:
                     self.get_logger().info('Table number: %d' % self.table_number)
                     #to include check bot limit switch status
                     to_dict[self.table_number]()
@@ -521,7 +587,7 @@ class TableNav(Node):
                     break #to instead include function to wait for next order'''
                 
                 # allow the callback functions to run
-            rclpy.spin_once(self)
+                rclpy.spin_once(self)
             
         except Exception as e:
             print(e)
@@ -534,7 +600,7 @@ class TableNav(Node):
 def main(args=None):
     rclpy.init(args=args)
 
-    #run()
+    # run()
 
     table_nav = TableNav()
     table_nav.nav(6)
