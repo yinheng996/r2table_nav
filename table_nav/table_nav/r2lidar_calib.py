@@ -12,6 +12,7 @@ class Scanner(Node):
         super().__init__('scanner')
         self.subscription = self.create_subscription(LaserScan, 'scan', self.listener_callback, qos_profile_sensor_data)
         self.subscription  # prevent unused variable warning
+        self.laser_range = np.array([])
 
     def listener_callback(self, msg):
         # create numpy array
@@ -37,9 +38,7 @@ class Scanner(Node):
             print(e)
         
         # Ctrl-c detected
-        finally:
-            pass
-
+        
 def main(args=None):
     rclpy.init(args=args)
 
