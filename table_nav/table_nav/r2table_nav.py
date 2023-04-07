@@ -182,10 +182,6 @@ class TableNav(Node):
         #to return True value when limit switch is pressed, False otherwise
         pass
 
-    def ldr_callback(self, msg):
-        #to return True value when LDR detects line, False otherwise
-        pass
-
 
     # function to rotate the TurtleBot
     def rotatebot(self, rot_angle):
