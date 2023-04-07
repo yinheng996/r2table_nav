@@ -1,7 +1,7 @@
 import os
 
 # Open a new terminal window and execute the SSH command
-os.system('gnome-terminal --tab -- sshrp user@remote_device')
+os.system('gnome-terminal --tab -- sshrp')
 
 # Wait for the SSH connection to be established
 connected = False
