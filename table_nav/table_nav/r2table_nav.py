@@ -410,7 +410,12 @@ class TableNav(Node):
             print("Back facing table")
 
         # check if approaching table
-        lri = (self.laser_range[comparison_range]<float(stop)).nonzero()
+        #lri = (self.laser_range[comparison_range][~np.isnan(self.laser_range[comparison_range])]<float(stop)).nonzero()
+        def lri(stop):
+            x = self.laser_range[comparison_range]
+            x = x[~np.isnan(x)]
+            lis = (x < float(stop)).nonzero()
+            return lis
 
         # create Twist object, publish movement
         twist = Twist()
@@ -419,7 +424,7 @@ class TableNav(Node):
         self.publisher_.publish(twist)
 
         while rclpy.ok():
-
+            rclpy.spin_once(self)
             if(len(lri[0])>0):
                 print("Arrived")
                 #stop moving
@@ -428,7 +433,7 @@ class TableNav(Node):
 
             # allow callback functions to run
             rclpy.spin_once(self)
-            lri = (self.laser_range[comparison_range]<float(stop)).nonzero()
+            #lri = (self.laser_range[comparison_range]<float(stop)).nonzero()
 
     def stopbot(self):
         self.get_logger().info('In stopbot')
