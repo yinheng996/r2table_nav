@@ -5,7 +5,6 @@ from geometry_msgs.msg import Twist
 from rclpy.qos import qos_profile_sensor_data
 from sensor_msgs.msg import LaserScan
 from nav_msgs.msg import OccupancyGrid
-from std_msgs.msg import Bool
 import numpy as np
 import math
 import cmath
@@ -140,15 +139,9 @@ class TableNav(Node):
         self.laser_range = np.array([])
 
         # create subscriber to track bot limit switch
-        # node = rclpy.create_node('bot_limit_subscriber')
-        self.bot_limit_subscription = self.create_subscription(Bool,'bot_limit_switch',self.bot_limit_callback,10)
-        self.bot_limit_subscription  # prevent unused variable warning
-        self.bot_limit = False
-
-        #create subscriber to track dispenser limit switch
-        # self.disp_limit_subscription = self.create_subscription(Bool,'/disp_limit_switch',self.dist_limit_callback,10)
-        # self.disp_limit_subscription  # prevent unused variable warning
-        # self.disp_limit = False
+        # self.bot_limit_subscription = self.create_subscription(Bool,'/bot_limit_switch',self.bot_limit_callback,10)
+        # self.bot_limit_subscription  # prevent unused variable warning
+        # self.bot_limit = False
 
         # create subscriber to track LDR for line following
         # self.ldr_subscription = self.create_subscription(Bool,'/ldr',self.ldr_callback,10)
@@ -189,14 +182,6 @@ class TableNav(Node):
         #to return True value when limit switch is pressed, False otherwise
         pass
 
-    def disp_limit_callback(self, msg):
-        #to return True value when limit switch is pressed, False otherwise
-        pass
-
-    def ldr_callback(self, msg):
-        #to return True value when LDR detects line, False otherwise
-        pass
-
 
     # function to rotate the TurtleBot
     def rotatebot(self, rot_angle):
@@ -208,8 +193,7 @@ class TableNav(Node):
         current_yaw = self.yaw
         # log the info
         self.get_logger().info('Current: %f' % math.degrees(current_yaw))
-        # we are going to use complex numbers to avoid problems when the angles go from
-        # 360 to 0, or from -180 to 180
+        # using complex numbers to avoid problems when the angles go from 360 to 0, or from -180 to 180
         c_yaw = complex(math.cos(current_yaw),math.sin(current_yaw))
         # calculate desired yaw
         target_yaw = current_yaw + math.radians(rot_angle)
@@ -251,54 +235,6 @@ class TableNav(Node):
         # stop the rotation
         self.publisher_.publish(twist)
 
-    '''def follow_wall(self, wall_distance):
-        error = wall_distance - min(self.laser_range[260:280])
-        Kp = 0.5 # proportional gain
-        turn_speed = Kp * error
-        # Set up twist command
-        twist = Twist()
-        twist.linear.x = 0.1 # fixed linear speed
-        twist.angular.z = turn_speed # adjust angular speed based on error
-        print(turn_speed)
-        # Publish twist command
-        self.publisher_.publish(twist)'''
-
-    def follow_wall(distance=0.5, speed=0.2):
-        #rclpy.init_node('wall_follower', anonymous=True)
-        #cmd_vel = rclpy.Publisher('/cmd_vel', Twist, queue_size=10)
-        twist = Twist()
-
-        while rclpy.ok():
-            # Calculate the distance to the wall on the right
-            dist_range = self.laser_range[240:300]
-            right_distance = min(dist_range)
-            # Adjust the robot's velocity based on the distance to the wall
-            if right_distance > distance:
-                # Turn left
-                twist.linear.x = speed
-                twist.angular.z = -speed
-            elif right_distance < distance:
-                # Turn right
-                twist.linear.x = speed
-                twist.angular.z = speed
-            else:
-                # Move straight
-                twist.linear.x = speed
-                twist.angular.z = 0.0
-            # Publish the velocity command
-            cmd_vel.publish(twist)
-    
-    def bot_limit_status(self):
-        #print(self.bot_limit)
-        rclpy.spin_once(self)
-        if self.bot_limit == True: 
-            print("drink filled")
-            return True
-        elif self.bot_limit == False:
-            print("drink removed")
-            return False
-        else:
-            return self.bot_limit_status()
 
     # all-in-one function for linear movements
     # first input == direction of movement (forward or backward)
@@ -438,53 +374,35 @@ class TableNav(Node):
         time.sleep(1)
         self.publisher_.publish(twist)
 
-    def calibrateF(self):
-        print("3-point dist:",self.laser_range[340],self.laser_range[0],self.laser_range[20])
-        if (abs((self.laser_range[340]/1.064) - self.laser_range[0])) <= 0.01 and (abs((self.laser_range[20]/1.064) - self.laser_range[0])) <= 0.01:
-            print("aligned 3-point:",self.laser_range[340],self.laser_range[0],self.laser_range[20])
-            return
-        else:
-            if self.laser_range[340]/1.064 > self.laser_range[0] or self.laser_range[0] > self.laser_range[20]/1.064:
-                print("Turning left")
-                self.rotatebot(0.5)
-            elif self.laser_range[20]/1.064 > self.laser_range[0] or self.laser_range[0] > self.laser_range[340]/1.064:
-                print("Turning right")
-                self.rotatebot(-0.5)
-        return self.calibrateF()
-    
-    def calibrateB(self):
-        print("3-point dist:",self.laser_range[160],self.laser_range[180],self.laser_range[200])
-        if (abs((self.laser_range[160]/1.064) - self.laser_range[180])) <= 0.01 and (abs((self.laser_range[200]/1.064) - self.laser_range[180])) <= 0.01:
-            print("aligned 3-point:",self.laser_range[160],self.laser_range[180],self.laser_range[200])
-            return
-        else:
-            if self.laser_range[160]/1.064 > self.laser_range[180] or self.laser_range[180] > self.laser_range[200]/1.064:
-                print("Turning left")
-                self.rotatebot(0.5)
-            elif self.laser_range[200]/1.064 > self.laser_range[180] or self.laser_range[180] > self.laser_range[160]/1.064:
-                print("Turning right")
-                self.rotatebot(-0.5)
-        return self.calibrateB()
 
-    def calibrateL(self):
-        print("3-point dist:",self.laser_range[70],self.laser_range[90],self.laser_range[110])
-        if (abs((self.laser_range[70]/1.064) - self.laser_range[90])) <= 0.01 and (abs((self.laser_range[110]/1.064) - self.laser_range[90])) <= 0.01:
-            print("aligned 3-point:",self.laser_range[70],self.laser_range[90],self.laser_range[110])
-            return
-        else:
-            if self.laser_range[70]/1.064 > self.laser_range[90] or self.laser_range[90] > self.laser_range[110]/1.064:
-                print("Turning left")
-                self.rotatebot(0.5)
-            elif self.laser_range[110]/1.064 > self.laser_range[90] or self.laser_range[90] > self.laser_range[70]/1.064:
-                print("Turning right")
-                self.rotatebot(-0.5)
-        return self.calibrateL()
+    def calibrate(self, direction):
+        max_attempts = 200 # to avoid infinite recursion
 
-    def calibrateR(self):
-        print("3-point dist:",self.laser_range[250],self.laser_range[270],self.laser_range[290])
-        if (abs((self.laser_range[250]/1.064) - self.laser_range[270])) <= 0.01 and (abs((self.laser_range[290]/1.064) - self.laser_range[270])) <= 0.01:
-            print("aligned 3-point:",self.laser_range[250],self.laser_range[270],self.laser_range[290])
-            return
+        calib_dict = {'R': [250, 270, 290, 'right'], \
+                      'L': [70, 90, 110, 'left'], \
+                      'F': [340, 0, 20, 'front'], \
+                      'B': [160, 180, 200, 'back']}
+        
+        for attempt in range(max_attempts):
+            print(f"Aligning with {calib_dict[direction][3]} wall...")
+            if (abs((self.laser_range[calib_dict[direction][0]]/1.064) - self.laser_range[calib_dict[direction][1]])) <= 0.01 and \
+                (abs((self.laser_range[calib_dict[direction][2]]/1.064) - self.laser_range[calib_dict[direction][1]])) <= 0.01:
+                print("Aligned")
+                break
+
+            else:
+                if self.laser_range[calib_dict[direction][0]]/1.064 > self.laser_range[calib_dict[direction][1]] or \
+                    self.laser_range[calib_dict[direction][1]] > self.laser_range[calib_dict[direction][2]]/1.064:
+                    print("Tilting left")
+                    self.rotatebot(0.5)
+                    rclpy.spin_once(self)
+
+                elif self.laser_range[calib_dict[direction][2]]/1.064 > self.laser_range[calib_dict[direction][1]] or \
+                    self.laser_range[calib_dict[direction][1]] > self.laser_range[calib_dict[direction][0]]/1.064:
+                    print("Tilting right")
+                    self.rotatebot(-0.5)
+                    rclpy.spin_once(self)
+
         else:
             print("Failed to align after {} attempts".format(max_attempts))
     
@@ -556,6 +474,50 @@ class TableNav(Node):
 
         self.stopbot()
         self.get_logger().info('Docked')
+
+    def checkpoint_1A_in_(self):
+        self.undocking()
+        pass
+    
+    def checkpoint_1A_out_(self):
+        self.docking()
+        pass
+
+    def checkpoint_1B_in_(self):
+        pass
+
+    def checkpoint_1B_out_(self):
+        pass
+
+    def checkpoint_1C_in_(self):
+        pass
+
+    def checkpoint_1C_out_(self):
+        pass
+
+    def checkpoint_1D_in_(self):
+        pass
+
+    def checkpoint_1D_out_(self):
+        pass
+
+    def checkpoint_2A_in_(self):
+        pass
+
+    def checkpoint_2A_out_(self):
+        pass
+
+    def checkpoint_2B_in_(self):
+        pass
+
+    def checkpoint_2B_out_(self):
+        pass
+
+    def checkpoint_2C_in_(self):
+        pass
+
+    def checkpoint_2C_out_(self):
+        pass
 
 
     # defining individual functions for each table
@@ -701,7 +663,7 @@ class TableNav(Node):
                     from_dict[table_num]()
 
                     #to include check dispenser limit switch status
-                    break #to instead include function to wait for next order'''
+                    break
                 
                 # allow the callback functions to run
                 rclpy.spin_once(self)
@@ -732,7 +694,3 @@ def main(args=None):
 
 if __name__ == '__main__':
     main()
-
-
-#TODO: integrate bot limit switch checker
-#TODO: fin up table 6 exceptions
