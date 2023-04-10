@@ -141,7 +141,7 @@ class TableNav(Node):
 
         # create subscriber to track bot limit switch
         # node = rclpy.create_node('bot_limit_subscriber')
-        self.bot_limit_subscription = self.create_subscription(Bool,'bot_limit_switch',self.bot_limit_callback,10)
+        self.bot_limit_subscription = self.create_subscription(Bool,'/bot_limit_switch',self.bot_limit_callback,10)
         self.bot_limit_subscription  # prevent unused variable warning
         self.bot_limit = False
 
@@ -156,7 +156,7 @@ class TableNav(Node):
         # self.ldr = False
 
     def odom_callback(self, msg):
-        orientation_quat =  msg.pose.pose.orientation
+        orientation_quat = msg.pose.pose.orientation
         self.roll, self.pitch, self.yaw = euler_from_quaternion(orientation_quat.x, orientation_quat.y, orientation_quat.z, orientation_quat.w)
 
     def occ_callback(self, msg):
@@ -187,6 +187,7 @@ class TableNav(Node):
 
     def bot_limit_callback(self, msg):
         #to return True value when limit switch is pressed, False otherwise
+        self.bot_limit = msg.data
         pass
 
     def disp_limit_callback(self, msg):
@@ -196,7 +197,6 @@ class TableNav(Node):
     def ldr_callback(self, msg):
         #to return True value when LDR detects line, False otherwise
         pass
-
 
     # function to rotate the TurtleBot
     def rotatebot(self, rot_angle):
@@ -250,43 +250,6 @@ class TableNav(Node):
         twist.angular.z = 0.0
         # stop the rotation
         self.publisher_.publish(twist)
-
-    '''def follow_wall(self, wall_distance):
-        error = wall_distance - min(self.laser_range[260:280])
-        Kp = 0.5 # proportional gain
-        turn_speed = Kp * error
-        # Set up twist command
-        twist = Twist()
-        twist.linear.x = 0.1 # fixed linear speed
-        twist.angular.z = turn_speed # adjust angular speed based on error
-        print(turn_speed)
-        # Publish twist command
-        self.publisher_.publish(twist)'''
-
-    def follow_wall(distance=0.5, speed=0.2):
-        #rclpy.init_node('wall_follower', anonymous=True)
-        #cmd_vel = rclpy.Publisher('/cmd_vel', Twist, queue_size=10)
-        twist = Twist()
-
-        while rclpy.ok():
-            # Calculate the distance to the wall on the right
-            dist_range = self.laser_range[240:300]
-            right_distance = min(dist_range)
-            # Adjust the robot's velocity based on the distance to the wall
-            if right_distance > distance:
-                # Turn left
-                twist.linear.x = speed
-                twist.angular.z = -speed
-            elif right_distance < distance:
-                # Turn right
-                twist.linear.x = speed
-                twist.angular.z = speed
-            else:
-                # Move straight
-                twist.linear.x = speed
-                twist.angular.z = 0.0
-            # Publish the velocity command
-            cmd_vel.publish(twist)
     
     def bot_limit_status(self):
         #print(self.bot_limit)
@@ -324,9 +287,9 @@ class TableNav(Node):
         elif pt_of_ref == 'back':
             dist += lidar_offset_b + 0.15
         elif pt_of_ref == 'centre of rotation from front':
-            dist += (centre_of_rotation_f_offset-lidar_offset)
+            dist += (lidar_offset +0.25) -0.152
         elif pt_of_ref == 'centre of rotation from back':
-            dist += (centre_of_rotation_b_offset-lidar_offset_b)
+            dist += (lidar_offset_b + 0.15) -0.13
         
         print('Distance to check: %s' % dist)
         
@@ -364,7 +327,8 @@ class TableNav(Node):
     # robot then waits for the limit switch to be depressed
     # then returns to its study position to its starting position
     def locate_table6(self, starting_angle, ending_angle):
-        angle = np.nanargmin(self.laser_range[starting_angle:ending_angle])
+        self.stop_at_table('front')
+        '''angle = np.nanargmin(self.laser_range[starting_angle:ending_angle])
         
         
         # instead of moving moving diagonally to the table, we will move in an L-shape, calculated using trigonometry
@@ -391,7 +355,7 @@ class TableNav(Node):
         self.right_angle_rotate('anticlockwise')
         # move forward until distance at 0 degrees is less than 0.1m
         self.stop_at_table('front')
-        self.stopbot()
+        self.stopbot()'''
 
     def stop_at_table(self, side_facing_table):
 
@@ -399,7 +363,7 @@ class TableNav(Node):
 
         if side_facing_table == 'front': 
             comparison_range = front_angles
-            stop = stop_distance + 0.02
+            stop = stop_distance + 0.07
             running_speed = 0.08
             print("Front facing table")
 
@@ -411,10 +375,12 @@ class TableNav(Node):
 
         # check if approaching table
         #lri = (self.laser_range[comparison_range][~np.isnan(self.laser_range[comparison_range])]<float(stop)).nonzero()
-        def lri(stop):
+        def lri_func(stop):
             x = self.laser_range[comparison_range]
             x = x[~np.isnan(x)]
             lis = (x < float(stop)).nonzero()
+            print(lis)
+            print(stop)
             return lis
 
         # create Twist object, publish movement
@@ -425,6 +391,7 @@ class TableNav(Node):
 
         while rclpy.ok():
             rclpy.spin_once(self)
+            lri = lri_func(stop)
             if(len(lri[0])>0):
                 print("Arrived")
                 #stop moving
@@ -693,20 +660,21 @@ class TableNav(Node):
 
         try:
             while rclpy.ok():
-                if self.laser_range.size != 0:
-
-                    self.get_logger().info('Table number: %d' % table_num)
-
+                #print(self.bot_limit)
+                self.bot_limit_status()
+                #if self.laser_range.size != 0:
+                    #self.get_logger().info('Table number: %d' % table_num)
+                    # self.move_til('backward', 180, 'less', 0.40, 'back')
                     #to include check bot limit switch status
-                    to_dict[table_num]()
-                    if table_num == 6:
-                        self.locate_table6(0, 90)
-                    time.sleep(3)
-                    #to include check bot limit switch status
-                    from_dict[table_num]()
+                    # to_dict[table_num]()
+                    # if table_num == 6:
+                    #     self.locate_table6(0, 90)
+                    # time.sleep(3)
+                    # #to include check bot limit switch status
+                    # from_dict[table_num]()
 
                     #to include check dispenser limit switch status
-                    break #to instead include function to wait for next order'''
+                    #break #to instead include function to wait for next order'''
                 
                 # allow the callback functions to run
                 rclpy.spin_once(self)
