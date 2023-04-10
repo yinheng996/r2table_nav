@@ -146,9 +146,9 @@ class TableNav(Node):
         self.laser_range = np.array([])
 
         # create subscriber to track bot limit switch
-        # self.bot_limit_subscription = self.create_subscription(Bool,'/bot_limit_switch',self.bot_limit_callback,10)
-        # self.bot_limit_subscription  # prevent unused variable warning
-        # self.bot_limit = False
+        self.bot_limit_subscription = self.create_subscription(Bool,'/bot_limit_switch',self.bot_limit_callback,10)
+        self.bot_limit_subscription  # prevent unused variable warning
+        self.bot_limit = False
 
     def odom_callback(self, msg):
         orientation_quat =  msg.pose.pose.orientation
@@ -181,8 +181,8 @@ class TableNav(Node):
         self.laser_range[self.laser_range==0] = np.nan
 
     def bot_limit_callback(self, msg):
-        #to return True value when limit switch is pressed, False otherwise
-        pass
+        # to return True value when limit switch is pressed, False otherwise
+        self.bot_limit = msg.data
 
 
 
@@ -430,6 +430,9 @@ class TableNav(Node):
         time.sleep(1)
         self.publisher_.publish(twist)
 
+        # Option 1
+
+        # Option 2: testing without MQTT
         while math.isnan(self.laser_range[0]) or self.laser_range[0] > 0.24: #to replace with check dist limit switch
             rclpy.spin_once(self)
             print(self.laser_range[0])
@@ -437,6 +440,17 @@ class TableNav(Node):
         self.stopbot()
         self.get_logger().info('Docked')
 
+    def bot_limit_status(self):
+        #print(self.bot_limit)
+        rclpy.spin_once(self)
+        if self.bot_limit == True: 
+            print("drink filled")
+            return True
+        elif self.bot_limit == False:
+            print("drink removed")
+            return False
+        else:
+            return self.bot_limit_status()
 
     def check_dist(self, limit):
 
@@ -555,7 +569,7 @@ class TableNav(Node):
         self.right_angle_rotate('anticlockwise')
         self.calibrate('R')
         self.check_dist(1.32)
-
+        
 
 
     # defining individual functions for each table
@@ -720,7 +734,27 @@ class TableNav(Node):
         self.move_til('forward', 0, 'less', 0.4, 'front')
         self.docking()
 
-    
+    def table6_shortcut(self):
+        
+        self.calib_4()
+        self.from_4_to_5()
+        self.calib_5()
+
+        self.locate_table6()
+
+        self.move_til('backward', 0, 'less', 0.40, 'centre of rotation from back')
+        self.right_angle_rotate('anticlockwise')
+        self.calibrate('L')
+
+        self.move_til('forward', 0, 'less', 0.30, 'front')
+        self.calibrate('F')
+        self.check_dist(0.38)
+        self.right_angle_rotate('clockwise')
+        self.calibrate('L')
+
+        self.move_til('forward', 0, 'less', 0.4, 'front')
+
+
     # governing function to process table number input and execute corresponding table function
     def nav(self, table_num):        
 
@@ -738,15 +772,22 @@ class TableNav(Node):
 
                     self.get_logger().info('Table number: %d' % table_num)
 
-                    #to include check bot limit switch status
-                    nav_dict[table_num][0]()
-                    if table_num == 6:
-                        self.locate_table6(0, 90)
-                    time.sleep(3)
-                    #to include check bot limit switch status
-                    nav_dict[table_num][1]()
+                    self.table6_shortcut()
 
-                    #to include check dispenser limit switch status
+                    # nav_dict[table_num][0]()
+
+                    # if table_num == 6:
+                    #     self.locate_table6(0, 90)
+                    
+                    # for i in range(30):
+                    #     self.get_logger().info('Waiting for can to be picked up')
+                    #     time.sleep(1)
+                    #     if self.bot_limit_status == 0:
+                    #         break
+
+                    # time.sleep(5)
+                    # nav_dict[table_num][1]()
+
                     break
                 
                 # allow the callback functions to run
