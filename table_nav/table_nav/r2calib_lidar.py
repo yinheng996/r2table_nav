@@ -17,7 +17,7 @@ class Scanner(Node):
     def listener_callback(self, msg):
         # create numpy array
         self.laser_range = np.array(msg.ranges)
-        # print to file
+    # print to file
         np.savetxt(scanfile, self.laser_range)
         # replace 0's with nan
         self.laser_range[self.laser_range==0] = np.nan
