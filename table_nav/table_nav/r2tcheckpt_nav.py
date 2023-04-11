@@ -15,8 +15,8 @@ from std_msgs.msg import Bool
 # constants
 rotation_speed = 0.2
 occ_bins = [-1, 0, 100, 101] 
-lidar_offset = 0.199
-lidar_offset_b = 0.094
+lidar_offset = 0.194
+lidar_offset_b = 0.095
 
 stop_distance = 0.1 + lidar_offset
 stop_distance_b = 0.1 + lidar_offset_b
@@ -212,29 +212,36 @@ class TableNav(Node):
         else:
             rotation_speed = 0.2
 
+        # self.get_logger().info('In rotatebot')
+        # create Twist object
         twist = Twist()
         
         # get current yaw angle
         current_yaw = self.yaw
+        # log the info
         self.get_logger().info('Current: %f' % math.degrees(current_yaw))
-
-        # using complex numbers to avoid problems when the angles go from 360 to 0, or from -180 to 180
+        # we are going to use complex numbers to avoid problems when the angles go from
+        # 360 to 0, or from -180 to 180
         c_yaw = complex(math.cos(current_yaw),math.sin(current_yaw))
+        # calculate desired yaw
         target_yaw = current_yaw + math.radians(rot_angle)
+        # convert to complex notation
         c_target_yaw = complex(math.cos(target_yaw),math.sin(target_yaw))
         self.get_logger().info('Desired: %f' % math.degrees(cmath.phase(c_target_yaw)))
-
         # divide the two complex numbers to get the change in direction
         c_change = c_target_yaw / c_yaw
         # get the sign of the imaginary component to figure out which way we have to turn
         c_change_dir = np.sign(c_change.imag)
-
+        # set linear speed to zero so the TurtleBot rotates on the spot
         twist.linear.x = 0.0
+        # set the direction to rotate
         twist.angular.z = c_change_dir * rotation_speed
+        # start rotation
         self.publisher_.publish(twist)
 
         # we will use the c_dir_diff variable to see if we can stop rotating
         c_dir_diff = c_change_dir
+        # self.get_logger().info('c_change_dir: %f c_dir_diff: %f' % (c_change_dir, c_dir_diff))
         # if the rotation direction was 1.0, then we will want to stop when the c_dir_diff
         # becomes -1.0, and vice versa
         while(c_change_dir * c_dir_diff > 0):
@@ -243,12 +250,17 @@ class TableNav(Node):
             current_yaw = self.yaw
             # convert the current yaw to complex form
             c_yaw = complex(math.cos(current_yaw),math.sin(current_yaw))
+            # self.get_logger().info('Current Yaw: %f' % math.degrees(current_yaw))
+            # get difference in angle between current and target
+            c_change = c_target_yaw / c_yaw
             # get the sign to see if we can stop
             c_dir_diff = np.sign(c_change.imag)
+            # self.get_logger().info('c_change_dir: %f c_dir_diff: %f' % (c_change_dir, c_dir_diff))
 
         self.get_logger().info('End Yaw: %f' % math.degrees(current_yaw))
-
+        # set the rotation speed to 0
         twist.angular.z = 0.0
+        # stop the rotation
         self.publisher_.publish(twist)
 
 
@@ -364,9 +376,10 @@ class TableNav(Node):
         time.sleep(1)
         self.publisher_.publish(twist)
 
-
+    
+    # calibration using triangulation
     def calibrate(self, direction):
-        max_attempts = 1000 # to avoid infinite recursion
+        max_attempts = 50 # to avoid infinite recursion
 
         calib_dict = {'R': [250, 270, 290, 'right'], \
                       'L': [70, 90, 110, 'left'], \
@@ -443,10 +456,7 @@ class TableNav(Node):
         time.sleep(1)
         self.publisher_.publish(twist)
 
-        # Option 1
-
-        # Option 2: testing without MQTT
-        while math.isnan(self.laser_range[0]) or self.laser_range[0] > 0.2: #to replace with check dist limit switch
+        while math.isnan(self.laser_range[0]) or self.laser_range[0] > 0.18: #to replace with check dist limit switch
             rclpy.spin_once(self)
             print(self.laser_range[0])
 
@@ -516,23 +526,33 @@ class TableNav(Node):
         # detected distance is the hypotenuse 
         # we will move forward by the adjacent side, then rotate 90 degrees anticlockwise, then move forward until distance at 0 degrees is less than 0.3m
         hypotenuse = self.laser_range[angle]
-        adjacent = hypotenuse * math.cos(angle)
-        opposite = hypotenuse * math.sin(angle)
+        adjacent = abs(hypotenuse * math.cos(angle))
+        opposite = abs(hypotenuse * math.sin(angle))
 
         self.get_logger().info('Table located: %d %f m' % (angle, hypotenuse))
+        # print(opposite)
+
+        self.rotatebot(angle)
+
+        # time.sleep(5)
 
         # move backward until distance at 0 degrees is more than 1.8m
-        self.move_til('backward', 180, 'less', 1.1, 'back')
-        self.right_angle_rotate('anticlockwise')
-        self.calibrate('B')
-        # move forward by the opposite side
-        self.move_til('forward', 180, 'more', opposite+0.20+0.17, 'center of rotation from back')
-        # rotate 90 degrees anticlockwise
-        self.right_angle_rotate('clockwise')
-        self.calibrate('R')
+        # self.move_til('backward', 180, 'less', 1.1, 'back')
+        # self.right_angle_rotate('anticlockwise')
+        # self.calibrate('B')
+        # # move forward by the opposite side
+        # if opposite >  0.5: 
+        #     self.move_til('forward', 180, 'more', (opposite+0.05), 'center of rotation from back')
+        # else: 
+        #     self.move_til('forward', 180, 'more', (opposite-0.15), 'center of rotation from back')
+        # # rotate 90 degrees anticlockwise
+        # self.right_angle_rotate('clockwise')
+        # self.calibrate('R')
         # move forward until distance at 0 degrees is less than 0.1m
+
         self.stop_at_table('front')
         self.stopbot()
+        self.rotatebot(-angle)
 
 
     # defining individual checkpoints
@@ -588,22 +608,23 @@ class TableNav(Node):
     def from_3_to_4(self):
         self.right_angle_rotate('anticlockwise')
         self.calibrate('R')
-        self.move_til('forward', 0, 'less', 0.40, 'center of rotation from front')
+        self.move_til('forward', 0, 'less', 0.50, 'front')
 
     def calib_4(self):
         self.right_angle_rotate('anticlockwise')
         self.calibrate('B')
 
     def from_4_to_5(self):
-        self.move_til('forward', 180, 'more', 0.70, 'back')
+        self.move_til('forward', 180, 'more', 0.60, 'back')
 
     def calib_5(self):
         self.right_angle_rotate('clockwise')
         self.calibrate('F')
-        self.check_dist(0.2)
+        self.check_dist(0.22)
         self.right_angle_rotate('anticlockwise')
         self.calibrate('R')
-        self.check_dist(1.52)
+        self.check_dist(1.37)
+        # self.check_dist(1.5)
         
 
 
@@ -717,7 +738,11 @@ class TableNav(Node):
         self.right_angle_rotate('clockwise')
         self.calibrate('L')
 
-        self.move_til('forward', 0, 'more', 1.0, 'back')
+        self.move_til('forward', 180, 'more', 1.0, 'back')
+        self.right_angle_rotate('anticlockwise')
+        self.calibrate('F')
+        self.check_dist(0.37)
+        self.right_angle_rotate('clockwise')
         self.calibrate('L')
         self.move_til('forward', 0, 'less', 0.4, 'front')
 
@@ -764,8 +789,8 @@ class TableNav(Node):
         self.move_til('forward', 180, 'more', 1.0, 'center of rotation from back')
         self.right_angle_rotate('anticlockwise')
         self.calibrate('F')
-        self.move_til('backward', 0, 'more', 0.7, 'front')
-        self.check_dist(0.7)
+        self.move_til('backward', 0, 'more', 0.6, 'centre of rotation from front')
+        self.check_dist(0.6)
         self.right_angle_rotate('clockwise')
         self.calibrate('L')
 
@@ -810,10 +835,24 @@ class TableNav(Node):
             while rclpy.ok():
                 if self.laser_range.size != 0:
 
+                    ## to test table 6 only
                     # self.table6_shortcut()
-                    # for i in range(10):
-                    #     print(i)
 
+                    ## to test docking only:
+                    # twist = Twist()
+                    # twist.linear.x,twist.angular.z = 0.05,0.0
+                    # time.sleep(1)
+                    # self.publisher_.publish(twist)
+                    
+                    # while math.isnan(self.laser_range[0]) or self.laser_range[0] > 0.175: #to replace with check dist limit switch
+                    #     rclpy.spin_once(self)
+                    #     print(self.laser_range[0])
+
+                    # self.stopbot()
+                    # self.get_logger().info('Docked')
+
+
+                    ## standard code
                     nav_dict[table_num][0]()
 
                     if table_num == 6:
@@ -823,14 +862,11 @@ class TableNav(Node):
                     while self.bot_limit == 1:
                         print(self.bot_limit)
                         self.get_logger().info('Waiting for can to be picked up')
-                        time.sleep(1)
+                        
                         rclpy.spin_once(self)
 
-                    # rclpy.spin_once(self)
-                    # self.get_logger().info(str(docking) + str(self.bot_limit==True))
-                    # this works
 
-                    time.sleep(5)
+                    time.sleep(3)
                     nav_dict[table_num][1]()
 
                     break
@@ -849,15 +885,15 @@ class TableNav(Node):
 def main(args=None):
     rclpy.init(args=args)
 
-    #Option 1: testing with MQTT
-    # run()
+    ## Option 1: testing with MQTT
+    run()
 
-    #Option 2: testing with manual input
+    ## Option 2: testing with manual input
     # print("Starting node")
-    table_num = int(input("Enter table number: "))
-    table_nav = TableNav()
-    table_nav.nav(table_num)
-    table_nav.destroy_node()
+    # table_num = int(input("Enter table number: "))
+    # table_nav = TableNav()
+    # table_nav.nav(table_num)
+    # table_nav.destroy_node()
 
     # rclpy.shutdown()
 
