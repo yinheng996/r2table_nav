@@ -15,8 +15,8 @@ from std_msgs.msg import Bool
 # constants
 rotation_speed = 0.2
 occ_bins = [-1, 0, 100, 101] 
-lidar_offset = 0.194
-lidar_offset_b = 0.095
+lidar_offset = 0.202
+lidar_offset_b = 0.094
 
 stop_distance = 0.1 + lidar_offset
 stop_distance_b = 0.1 + lidar_offset_b
@@ -24,10 +24,10 @@ stop_distance_b = 0.1 + lidar_offset_b
 centre_of_rotation_f_offset = 0.152
 centre_of_rotation_b_offset = 0.13
 
-move_dist_f = lidar_offset +0.14
+move_dist_f = lidar_offset +0.14 + 0.06
 move_dist_corf = move_dist_f - centre_of_rotation_f_offset
-move_dist_b = lidar_offset_b + 0.13
-move_dist_corb = move_dist_b - centre_of_rotation_b_offset
+move_dist_b = lidar_offset_b + 0.13 + 0.04 +0.04
+move_dist_corb = move_dist_b - centre_of_rotation_b_offset 
 
 angle_sweep = 30
 front_angles = range(-angle_sweep, angle_sweep+1,1)
@@ -100,7 +100,7 @@ def run():
         if table_num != 0 and table_num != last_num:
             
             table_nav = TableNav()
-            time.sleep(8)
+            time.sleep(4)
             table_nav.nav(table_num)
             table_nav.destroy_node()
 
@@ -278,7 +278,7 @@ class TableNav(Node):
 
         # create Twist object, publish movement
         twist = Twist()
-        twist.linear.x = move_dict[direction] * 0.16
+        twist.linear.x = move_dict[direction] * 0.18
         twist.angular.z = 0.0
         time.sleep(1)
         self.publisher_.publish(twist)
@@ -331,7 +331,7 @@ class TableNav(Node):
 
         if side_facing_table == 'front': 
             comparison_range = front_angles
-            stop = stop_distance + 0.07
+            stop = stop_distance + 0.06
             running_speed = 0.05
             print("Front facing table")
 
@@ -415,7 +415,7 @@ class TableNav(Node):
         # create Twist object, publish movement
         twist = Twist()
         
-        twist.linear.x = -0.10
+        twist.linear.x = -0.2
         twist.angular.z = 0.0
         time.sleep(1)
         self.publisher_.publish(twist)
@@ -458,7 +458,7 @@ class TableNav(Node):
 
         while math.isnan(self.laser_range[0]) or self.laser_range[0] > 0.18: #to replace with check dist limit switch
             rclpy.spin_once(self)
-            print(self.laser_range[0])
+            # print(self.laser_range[0])
 
         self.stopbot()
         self.get_logger().info('Docked')
@@ -552,6 +552,14 @@ class TableNav(Node):
 
         self.stop_at_table('front')
         self.stopbot()
+
+        rclpy.spin_once(self)
+        while self.bot_limit == 1:
+            print(self.bot_limit)
+            self.get_logger().info('Waiting for can to be picked up')
+            
+            rclpy.spin_once(self)
+
         self.rotatebot(-angle)
 
 
@@ -583,13 +591,20 @@ class TableNav(Node):
         self.calibrate('B')
         self.move_til('forward', 0, 'less', 1.20, 'centre of rotation from front')
 
+    def from_1_to_3(self):
+        self.right_angle_rotate('anticlockwise')
+        self.calibrate('B')
+        self.move_til('forward', 0, 'less', 1.20, 'centre of rotation from front')
+        self.rotatebot(10)
+        self.move_til('forward', 0, 'less', 0.4, 'centre of rotation from front')
+
     def from_2_to_1(self):
         self.rotatebot(10)
         self.move_til('forward', 0, 'less', 0.4, 'front')
 
     def from_2_to_3(self): 
         self.rotatebot(10)
-        self.move_til('forward', 0, 'less', 0.5, 'centre of rotation from front')
+        self.move_til('forward', 0, 'less', 0.4, 'centre of rotation from front')
 
     def from_3_to_1(self):
         self.calibrate('L')
@@ -598,7 +613,7 @@ class TableNav(Node):
         self.calibrate('B')
 
         self.move_til('forward', 180, 'more', 1.20, 'centre of rotation from back')
-        self.rotatebot(10)
+        self.rotatebot(20)
         self.move_til('forward', 0, 'less', 0.4, 'front')
 
     def calib_3(self):
@@ -608,14 +623,14 @@ class TableNav(Node):
     def from_3_to_4(self):
         self.right_angle_rotate('anticlockwise')
         self.calibrate('R')
-        self.move_til('forward', 0, 'less', 0.50, 'front')
+        self.move_til('forward', 0, 'less', 0.35, 'front')
 
     def calib_4(self):
         self.right_angle_rotate('anticlockwise')
         self.calibrate('B')
 
     def from_4_to_5(self):
-        self.move_til('forward', 180, 'more', 0.60, 'back')
+        self.move_til('forward', 180, 'more', 0.50, 'back')
 
     def calib_5(self):
         self.right_angle_rotate('clockwise')
@@ -623,7 +638,8 @@ class TableNav(Node):
         self.check_dist(0.22)
         self.right_angle_rotate('anticlockwise')
         self.calibrate('R')
-        self.check_dist(1.37)
+        self.move_til('forward', 0, 'less', 1.4, 'centre of rotation from front')
+        # self.check_dist(1.37)
         # self.check_dist(1.5)
         
 
@@ -691,12 +707,10 @@ class TableNav(Node):
     def to_table4(self):
 
         self.from_dock_to_1()
-        self.right_angle_rotate('clockwise')
-        self.calib_1()
+        # self.right_angle_rotate('clockwise')
+        # self.calib_1()
 
-        self.from_1_to_2()
-
-        self.from_2_to_3()
+        self.from_1_to_3()
         self.calib_3()
         self.right_angle_rotate('clockwise')
 
@@ -705,7 +719,7 @@ class TableNav(Node):
 
     def from_table4(self):
 
-        self.move_til('backward', 0, 'more', 0.10, 'front')
+        # self.move_til('backward', 0, 'more', 0.05, 'front')
 
         self.from_3_to_1()
         self.calib_1()
@@ -714,12 +728,10 @@ class TableNav(Node):
     def to_table6(self):
 
         self.from_dock_to_1()
-        self.right_angle_rotate('clockwise')
-        self.calib_1()
+        # self.right_angle_rotate('clockwise')
+        # self.calib_1()
 
-        self.from_1_to_2()
-
-        self.from_2_to_3()
+        self.from_1_to_3()
         self.calib_3()
 
         self.from_3_to_4()
@@ -759,8 +771,8 @@ class TableNav(Node):
 
         self.move_til('backward', 0, 'more', 1.0, 'front')
         self.right_angle_rotate('anticlockwise')
-        self.calibrate('F')
-        self.move_til('forward', 0, 'less', 0.4, 'front')
+        # self.calibrate('F')
+        self.move_til('forward', 0, 'less', 0.4, 'centre of rotation from front')
         self.calibrate('F')
         self.check_dist(0.4)
         self.right_angle_rotate('anticlockwise')
@@ -769,7 +781,7 @@ class TableNav(Node):
         self.right_angle_rotate('anticlockwise')
         self.calibrate('B')
 
-        self.move_til('forward', 180, 'more', 1.0, 'center of rotation from back')
+        self.move_til('forward', 180, 'more', 1.3, 'center of rotation from back')
         self.right_angle_rotate('anticlockwise')
         self.calibrate('F')
         self.check_dist(0.4)
@@ -786,11 +798,11 @@ class TableNav(Node):
         self.move_til('backward', 180, 'less', 0.7, 'center of rotation from back')
         self.right_angle_rotate('anticlockwise')
 
-        self.move_til('forward', 180, 'more', 1.0, 'center of rotation from back')
+        self.move_til('forward', 180, 'more', 1.55, 'center of rotation from back')
         self.right_angle_rotate('anticlockwise')
         self.calibrate('F')
-        self.move_til('backward', 0, 'more', 0.6, 'centre of rotation from front')
-        self.check_dist(0.6)
+        self.move_til('backward', 0, 'more', 0.4, 'centre of rotation from front')
+        # self.check_dist(0.6)
         self.right_angle_rotate('clockwise')
         self.calibrate('L')
 
@@ -835,6 +847,12 @@ class TableNav(Node):
             while rclpy.ok():
                 if self.laser_range.size != 0:
 
+                    ## to calibrate distance
+                    # self.move_til('forward', 0, 'less', 0.2, 'front')
+                    # self.move_til('forward', 0, 'less', 0.2, 'centre of rotation from front')
+                    # self.move_til('backward', 180 , 'less', 0.2, 'back')
+                    # self.move_til('backward', 180 , 'less', 0.2, 'centre of rotation from back')
+
                     ## to test table 6 only
                     # self.table6_shortcut()
 
@@ -851,23 +869,27 @@ class TableNav(Node):
                     # self.stopbot()
                     # self.get_logger().info('Docked')
 
+                    ##
+                    self.docking()
+
 
                     ## standard code
-                    nav_dict[table_num][0]()
+                    # nav_dict[table_num][0]()
 
-                    if table_num == 6:
-                        self.locate_table6(0, 90)
+                    # if table_num == 6:
+                    #     self.locate_table6(0, 90)
 
-                    rclpy.spin_once(self)
-                    while self.bot_limit == 1:
-                        print(self.bot_limit)
-                        self.get_logger().info('Waiting for can to be picked up')
-                        
-                        rclpy.spin_once(self)
+                    # else: 
+                    #     rclpy.spin_once(self)
+                    #     while self.bot_limit == 1:
+                    #         print(self.bot_limit)
+                    #         self.get_logger().info('Waiting for can to be picked up')
+                            
+                    #         rclpy.spin_once(self)
 
 
-                    time.sleep(3)
-                    nav_dict[table_num][1]()
+                    # time.sleep(3)
+                    # nav_dict[table_num][1]()
 
                     break
                 
