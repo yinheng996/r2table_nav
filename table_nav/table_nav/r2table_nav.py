@@ -254,7 +254,7 @@ class TableNav(Node):
     def bot_limit_status(self):
         #print(self.bot_limit)
         rclpy.spin_once(self)
-        if self.bot_limit == True: 
+        if self.bot_limit == True:
             print("drink filled")
             return True
         elif self.bot_limit == False:
