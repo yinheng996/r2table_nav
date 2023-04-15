@@ -1,3 +1,5 @@
+//FINAL CODE
+
 #include <WiFi.h>
 #include <PubSubClient.h>
 #include <Keypad.h>
@@ -43,6 +45,8 @@ PubSubClient client(mqtt_server, mqtt_port, espClient);
 unsigned long previousMillis = 0;
 unsigned long interval = 30000;
 unsigned long lastMsg = 0;
+#define MSG_BUFFER_SIZE (5)
+char msg[MSG_BUFFER_SIZE];
 
 int tableNum = 0;
 bool robot_arrived = false;
@@ -70,7 +74,6 @@ void reconnect() {
   while (!client.connected()) {
     Serial.println("Attempting MQTT connection...");
     String clientId = "ESP32Client-";
-    /*clientId += String(random(0xffff), HEX);*/
     if (client.connect(clientId.c_str(), mqtt_username, mqtt_password)) {
       Serial.println("Connected to MQTT Broker");
     } 
@@ -78,17 +81,37 @@ void reconnect() {
       Serial.print("Failed, rc=");
       Serial.print(client.state());
       Serial.println(" try again in 2 seconds");
+      //Wait 2 seconds before retrying
       delay(2000);
     }
+  }
+}
+
+void constantPublish() {
+  //Publish Docking Status every 2 seconds
+  unsigned long currentMillis = millis();
+  if (currentMillis - lastMsg > 2000) {
+    lastMsg = currentMillis;
+    //Read Docking Status
+    limitSwitch.loop();
+    int state = limitSwitch.getState();
+    if (state == HIGH) {
+      docking = true;
+    }
+    else {
+      docking = false;
+    }
+    snprintf(msg, MSG_BUFFER_SIZE, "%d", docking);
+    client.publish(mqtt_topic_docking, msg);
   }
 }
 
 void setup() {
   Serial.begin(9600);
 	servo.attach(servoPin, 771, 2740);
-	/*  [Calibration] using min/max pulse widths of 771us and 2740us.
-	    Different servos require different min/max settings.
-        For an accurate 0 to 180 sweep */
+	/*[Calibration] using min/max pulse widths of 771us and 2740us.
+	  Different servos require different min/max settings.
+    For an accurate 0 to 180 sweep */
   limitSwitch.setDebounceTime(50);
   servo.write(120);                 //set servo to initial position
   setup_wifi();
@@ -114,6 +137,7 @@ void loop() {
 
   //Check for status of robot's arrival
   while (!robot_arrived) {
+    constantPublish();
     limitSwitch.loop();
     int state = limitSwitch.getState();
     if (state == HIGH) {
@@ -121,13 +145,9 @@ void loop() {
       docking = true;
       String dockingS = "Docking Status: "+String(docking)+" ";
       Serial.println(dockingS);
-      //Serial.println(client.state()); //0 : MQTT_CONNECTED - the client is connected
       reconnect();
       delay(1000);
       //Publish to the MQTT Broker
-      // unsigned long now = millis();
-      // if (now - lastMsg > 10000) {
-      //   lastMsg = now;
       if (client.publish(mqtt_topic_docking, String(dockingS).c_str())) {
         boolean rc = client.publish(mqtt_topic_docking, String(dockingS).c_str());
         Serial.println("Publishing Status: "+String(rc)+" ");
@@ -150,46 +170,45 @@ void loop() {
   }
 
   while (robot_arrived) {
+    constantPublish();
     //Wait for valid input from keypad
     char key = keypad.getKey();
     while (key == NO_KEY || !(key >= '1' && key <= '6')) {
+      constantPublish();
       key = keypad.getKey();
     }
 
-    // Store keypad input if it's a valid table number
+    //Store keypad input if it's a valid table number
     if (key >= '1' && key <= '6') {
       tableNum = key - '0';
       //MQTT can only transmit strings
       String tableNumS = "Table No. for delivery: "+String(tableNum)+" ";
       Serial.println(tableNumS);
-      //Serial.println(client.state()); //0 : MQTT_CONNECTED - the client is connected
       reconnect();
       delay(1000);
       //Publish to the MQTT Broker
-      // unsigned long now = millis();
-      // if (now - lastMsg > 10000) {
-      //   lastMsg = now;
       if (client.publish(mqtt_topic_tablenum, String(tableNumS).c_str())) {
         boolean rc = client.publish(mqtt_topic_tablenum, String(tableNumS).c_str());
         Serial.println("Publishing Status: "+String(rc)+" ");
         Serial.println("Robot is receiving table number...");
         delay(1000);
-
+        
         //Tilt bucket to transfer load can to robot
-        delay(2000);
         Serial.println("Tilting...");
-		    servo.write(0);
-		    delay(2000);             // waits 2s for the servo to reach the position
+        delay(3000);
+		    servo.write(20);
+		    delay(3000);
         Serial.println("Returning to original position...");
 		    servo.write(120);
-		    delay(2000);             // waits 2s for the servo to reach the position
-          
+        delay(2000);
+
         delay(1000);
 
         Serial.println("Can has been transferred. Robot is ready to deliver.");
         limitSwitch.loop();
         int state = limitSwitch.getState();
         while (state == HIGH) {
+          constantPublish();
           Serial.println("Waiting for Robot to deliver...");
           delay(2000);
           limitSwitch.loop();
@@ -198,7 +217,6 @@ void loop() {
         docking = false;
         String dockingS = "Docking Status: "+String(docking)+" ";
         Serial.println("Docking status: "+String(docking)+" ");
-        //Serial.println(client.state()); //0 : MQTT_CONNECTED - the client is connected
         reconnect();
         delay(1000);
         //Publish to the MQTT Broker
