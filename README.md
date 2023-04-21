@@ -19,39 +19,49 @@ You may check out our project report under the `/documentations` folder for more
     (You may stop once you are able to teleoperate the turtlebot from your computer.) <br/> https://emanual.robotis.com/docs/en/platform/turtlebot3/quick-start/
 2. Follow the instructions here to setup MQTT X on your laptop. <br/>
     (We are using a cloud-based MQTT broker for this project (MQTT X) for better consistency.) <br/> https://mqttx.app/docs/downloading-and-installation
-3. Follow the instructions here to setup Paho-MQTT on your laptop <br/>
+3. Follow the instructions here to setip Arduino IDE on your laptop. <br/>
+https://www.arduino.cc/en/software
+4. Follow the instructions here to setup Paho-MQTT on your laptop <br/>
 https://pypi.org/project/paho-mqtt/
-4. Refer to our `/hardware` folder for the schematics of the circuits that we use to replicate our robot system. <br/>
+5. Refer to our `/hardware` folder for the schematics of the circuits that we use to replicate our robot system. <br/>
 
 __Important__: Please note that our project has been developed using Ubuntu 20.04.4, ROS2 Foxy, and Python 3.6, as well as a Raspberry Pi 3B+ and a DOIT ESP32 Devkit V1 Board. As such, modifications may be necessary when using other software systems or hardware platforms.
 
 ### Setup
 
-1. Clone our repository into your Home directory. <br/>
+1. On your Ubuntu Machine, clone our repository into your Home directory. Compile the workspace. <br/>
 
     ```
-    git clone https://github.com/yinheng996/r2table_nav.git 
-2. Shift the entire folder hardware_bringup into your turtlebot3_ws using scp, then build the workspace, for example
+    cd colcon_ws/src/auto_nav
+    git clone https://github.com/hahaha2002/r2auto_nav.git 
+    cd colcon_ws
+    colcon build
+2. Copy the `/py_pubsub` folder onto the Raspberry Pi. Compile the workspace. <br/>
     
     ```
-    scp -r path_to_r2auto_nav/turtlebot3_ws/src/hardware_bringup ubuntu@(ip-address-of-pi):~/turtlebot3/src
-    ssh ubuntu@(ip-address-of-pi)
+    ssh ubuntu@<RPi IP address>
+    scp -r <path to r2auto_nav directory>/py_pubsub ubuntu@<RPi IP address>:~/turtlebot_ws/src 
     cd turtlebot3_ws
     colcon build 
-3. cd into colcon_ws and colcon build the workspace to setup the ros package on your laptop
+3. Open the code for the ESP32 in the Arduino IDE. This will be located in the repository that you cloned in step 1. In the code, make any necessary changes or modifications.
 
-    ```
-    cd path_to_r2auto_nav/colcon_ws
-    colcon build 
+Connect the ESP32 to your computer using a USB cable.
+
+In the Arduino IDE, select the correct board and serial port. To do this, navigate to "Tools" -> "Board" and select "ESP32 Dev Module". Then, navigate to "Tools" -> "Port" and select the correct serial port.
+
+Click on the "Upload" button in the Arduino IDE to upload the code onto the ESP32.
+
+Once the upload is complete, disconnect the ESP32 from your computer and power it using an external power source. The code should now be running on the ESP32.
+
 ## System check
 Before you start using the robot, make sure everything is running properly by using the factory_test package. Follow these instructions to check the system:
 
 #### For your Turtlebot
 ##### In one terminal
-    ssh ubuntu@(ip-address-of-pi)
+    ssh ubuntu@<RPi IP address>
     roslaunch turtlebot3_bringup turtlebot3_robot.launch
 ##### In another terminal
-    ssh ubuntu@(ip-address-of-pi)
+    ssh ubuntu@<RPi IP address>
     ros2 launch hardware_bringup hardware.launch.py
 Finally, we will run the script in your laptop to check that the whole system is working
 #### For your Laptop
@@ -59,3 +69,4 @@ Finally, we will run the script in your laptop to check that the whole system is
     ros2 run auto_nav factory_test
 
 Follow the instructions printed on your terminal, and if everything works out fine, it means the system is ready to go.
+
