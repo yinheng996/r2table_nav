@@ -73,12 +73,15 @@ Before you start using the robot, make sure everything is running properly by us
 ##### In another terminal
     ssh ubuntu@<RPi IP address>
     ros2 launch hardware_bringup hardware.launch.py
-Finally, we will run the script in your laptop to check that the whole system is working
+Finally, we will run the script in your laptop to check that the whole system is working.
 #### For your Laptop
 ##### In one terminal
     ros2 run auto_nav factory_test
-
 Follow the instructions printed on your terminal, and if everything works out fine, it means the system is ready to go.
+#### For your ESP32
+   Launch the ESP32 factory test scripts in our `/ESP32_test` folder onto your Arduino IDE, then upload and run on your ESP32 module. <br/>
+   Do this individually for each script. <br/>
+   If your ESP32 module passes all the tests, it is ready to go.
 
 ## Calibration and Configuration
 TODO: after tidying code
