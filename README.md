@@ -19,14 +19,24 @@ TODO: update after finalised
 ## Operating Instructions
 ### Installation
 1. Follow the instructions here to setup ROS 2 Foxy on laptop and turtlebot. <br/>
-    (You may stop once you are able to teleoperate the turtlebot from your computer.) <br/> https://emanual.robotis.com/docs/en/platform/turtlebot3/quick-start/
+    (You may stop once you are able to teleoperate the turtlebot from your computer.) <br/> 
+    https://emanual.robotis.com/docs/en/platform/turtlebot3/quick-start/
 2. Follow the instructions here to setup MQTT X on your laptop. <br/>
-    (We are using a cloud-based MQTT broker for this project (MQTT X) for better consistency.) <br/> https://mqttx.app/docs/downloading-and-installation
-3. Follow the instructions here to setup Arduino IDE on your laptop. <br/>
-https://www.arduino.cc/en/software
-4. Follow the instructions here to setup Paho-MQTT on your laptop <br/>
+    (We are using a cloud-based MQTT broker for this project (MQTT X) for better consistency.) <br/> 
+    https://mqttx.app/docs/downloading-and-installation
+3. Follow the instructions here to setup ESP32 software. <br/> 
+    https://esp32io.com/tutorials/esp32-software-installization
+5. Follow the instructions here to setup Arduino IDE on your laptop. <br/> 
+    https://www.arduino.cc/en/software <br/>
+    Install the follow libraries on your Arduino IDE:
+    * PubSubClient by Nick O'Leary
+    * EspMQTTClient by Patrick
+    * Keypad by Mark
+    * ESP32Servo by Kevin
+    * ezButton by ArduinoGetStarted.com
+5. Follow the instructions here to setup Paho-MQTT on your laptop. <br/>
 https://pypi.org/project/paho-mqtt/
-5. Refer to our `/hardware` folder for the schematics of the circuits that we use to replicate our robot system. <br/>
+6. Refer to our `/hardware` folder for the schematics of the circuits that we use to replicate our robot system. <br/>
 
 __Important__: Please note that our project has been developed using Ubuntu 20.04.4, ROS2 Foxy, Arduino 2.1.0 and Python 3.6, as well as a Raspberry Pi 3B+ and a DOIT ESP32 Devkit V1 Board. As such, modifications may be necessary when using other software systems or hardware platforms.
 
@@ -71,6 +81,7 @@ Finally, we will run the script in your laptop to check that the whole system is
 Follow the instructions printed on your terminal, and if everything works out fine, it means the system is ready to go.
 
 ## Calibration and Configuration
+TODO: after tidying code
 
 ## Running the Code
 A total of 4 terminals would be required to run the code, in addition to the MQTT X GUI.
@@ -88,3 +99,4 @@ A total of 4 terminals would be required to run the code, in addition to the MQT
 ##### In Terminal 4: To run navigation code
     cd <path to r2table_nav directory>/table_nav/table_nav
     python3 r2tcheckpt_nav.py
+#### In MQTT X:
