@@ -6,12 +6,24 @@ This is an open-source project for a Food Delivery Robot, developed as part of t
 The project team, Studio 2 Group 3, comprises of Loh Yin Heng, Wang Bo, Jeanette Sim Yu, Hang Jin Guang, and Ananya Agarwal.
 
 ## Description
-This project includes building a dispenser and modifying a turtlebot 3. The intersystem communication protocol is MQTT, press the keypad on the the dispesner to select table, dispenser will dispense food to the robto and robto naviaget to assigned table is designed to build a food delivery robot that navigates through a restaurant, picks up an order, and delivers it to the assigned table. The robot is based on the Turtlebot 3 platform and uses ROS 2 Foxy as its operating system. It also utilizes MQTT messaging protocol for communication.
+Our objective is to build a food delivery robot that seamlessly navigates through a restaurant, collects an order, and delivers it to the designated table. Our design is based on the Turtlebot 3 platform and utilizes ROS 2 Foxy as its operating system. We employ the MQTT messaging protocol for inter-system communication.
+
+To achieve our objective, we have built a dispenser equipped with a keypad that allows for the selection of the table. Our dispenser is powered by an ESP32 microcontroller, which serves as the brain of the dispenser. This allows for seamless communication between the dispenser and the robot, and enables us to easily modify and update the dispenser's functionality.
+
+This repository houses the code for robot navigation, MQTT communication and dispenser functions.
+You may check out our project report under the `/documentations` folder for more details on our robot and its mission.
 
 ## Operating Instructions
 ### Installation
-1. Follow the instructions here to setup ROS 2 Foxy on laptop and turtlebot https://emanual.robotis.com/docs/en/platform/turtlebot3/quick-start/
-2. Follow the instructions here to setup MQTT on your laptop
+1. Follow the instructions here to setup ROS 2 Foxy on laptop and turtlebot. <br/>
+    (You may stop once you are able to teleoperate the turtlebot from your computer.) <br/> https://emanual.robotis.com/docs/en/platform/turtlebot3/quick-start/
+2. Follow the instructions here to setup MQTT X on your laptop. <br/>
+    (We are using a cloud-based MQTT broker for this project (MQTT X) for better consistency.) <br/> https://mqttx.app/docs/downloading-and-installation
+3. Follow the instructions here to setup Paho-MQTT on your laptop <br/>
+https://pypi.org/project/paho-mqtt/
+4. Refer to our `/hardware` folder for the schematics of the circuits that we use to replicate our robot system. <br/>
+
+__Important__: Please note that our project has been developed using Ubuntu 20.04.4, ROS2 Foxy, and Python 3.6, as well as a Raspberry Pi 3B+ and a DOIT ESP32 Devkit V1 Board. As such, modifications may be necessary when using other software systems or hardware platforms.
 
 ### Setup
 
