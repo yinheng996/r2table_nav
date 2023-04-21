@@ -18,23 +18,19 @@ This project includes building a dispenser and modifying a turtlebot 3. The inte
 1. Clone our repository into your Home directory. <br/>
 
     ```
-    git clone https://github.com/yinheng996/r2table_nav.git
-```
+    git clone https://github.com/yinheng996/r2table_nav.git 
 2. Shift the entire folder hardware_bringup into your turtlebot3_ws using scp, then build the workspace, for example
     
     ```
     scp -r path_to_r2auto_nav/turtlebot3_ws/src/hardware_bringup ubuntu@(ip-address-of-pi):~/turtlebot3/src
     ssh ubuntu@(ip-address-of-pi)
     cd turtlebot3_ws
-    colcon build
-  
-    ```
+    colcon build 
 3. cd into colcon_ws and colcon build the workspace to setup the ros package on your laptop
 
     ```
     cd path_to_r2auto_nav/colcon_ws
-    colcon build
-  
+    colcon build 
 ## System check
 Before you start using the robot, make sure everything is running properly by using the factory_test package. Follow these instructions to check the system:
 
@@ -45,4 +41,9 @@ Before you start using the robot, make sure everything is running properly by us
 ##### In another terminal
     ssh ubuntu@(ip-address-of-pi)
     ros2 launch hardware_bringup hardware.launch.py
-  
+Finally, we will run the script in your laptop to check that the whole system is working
+#### For your Laptop
+##### In one terminal
+    ros2 run auto_nav factory_test
+
+Follow the instructions printed on your terminal, and if everything works out fine, it means the system is ready to go.
