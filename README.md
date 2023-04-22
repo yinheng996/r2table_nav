@@ -23,7 +23,8 @@ TODO: update after finalised
     https://emanual.robotis.com/docs/en/platform/turtlebot3/quick-start/
 2. Follow the instructions here to download, install and setup MQTT X on your laptop. <br/>
     (We are using a cloud-based MQTT desktop client for this project (MQTT X) for better consistency.) <br/> 
-    https://github.com/emqx/MQTTX/blob/main/docs/manual.md
+    https://github.com/emqx/MQTTX/blob/main/docs/manual.md <br/>
+   Refer to our project configurations [here](https://github.com/yinheng996/r2table_nav/blob/main/Documentations/MQTT%20X%20Setup%20Config.pdf)
 3. Follow the instructions here to setup ESP32 software. <br/> 
     https://esp32io.com/tutorials/esp32-software-installization
 5. Follow the instructions here to setup Arduino IDE on your laptop. <br/> 
