@@ -11,7 +11,7 @@ Our objective is to build a food delivery robot that seamlessly navigates throug
 To achieve our objective, we have built a dispenser equipped with a keypad that allows for the selection of the table. Our dispenser is powered by an ESP32 microcontroller, which serves as the brain of the dispenser. This allows for seamless communication between the dispenser and the robot, and enables us to easily modify and update the dispenser's functionality.
 
 This repository houses the code for robot navigation, MQTT communication and dispenser functions.
-You may check out our project report under the `/documentations` folder for more details on our robot and its mission.
+You may check out our project report under the [/Documentations](https://github.com/yinheng996/r2table_nav/tree/main/Documentations) folder for more details on our robot and its mission.
 
 ## File Organisation
 TODO: update after finalised
@@ -37,7 +37,7 @@ TODO: update after finalised
     * ezButton by ArduinoGetStarted.com
 5. Follow the instructions here to setup Paho-MQTT on your laptop. <br/>
 https://pypi.org/project/paho-mqtt/
-6. Refer to our `/Hardware/Electrical Circuits` folder for the schematics of the circuits that we use to replicate our robot system. <br/>
+6. Refer to our [/Hardware/Electrical Circuits](https://github.com/yinheng996/r2table_nav/tree/main/Hardware/Electrical%20Circuits) folder for the schematics of the circuits that we use to replicate our robot system. <br/>
 
 __Important__: Please note that our project has been developed using Ubuntu 20.04.4, ROS2 Foxy, Arduino 2.1.0 and Python 3.6, as well as a DOIT ESP32 Devkit V1 Board and a Robotis Co. TurtleBot3 Burger with Raspberry Pi 3B+. As such, modifications may be necessary when using other software systems or hardware platforms.
 
@@ -67,9 +67,9 @@ __Important__: Please note that our project has been developed using Ubuntu 20.0
     1. After the connection to ESP32 is successful, click the `New Subscription` button in the lower left corner to add New Topics. <br/>
     2. Add the topics `docking` and `table_num`
 ## System check
-Before you start using the robot, make sure everything is running properly by using `r2factory_test.py`. Follow these instructions to check the system:
 
 #### For your TurtleBot
+We need to test if the limit switch is connected to the RPi and if the RPi is able to publish its status using [limit_switch.py](https://github.com/yinheng996/r2table_nav/blob/main/py_pubsub_robot/limit_switch.py)
 ##### In one terminal
     ssh ubuntu@<RPi IP address>
     roslaunch turtlebot3_bringup turtlebot3_robot.launch
@@ -77,23 +77,26 @@ Before you start using the robot, make sure everything is running properly by us
     ssh ubuntu@<RPi IP address>
     cd <path to r2table_nav directory>/py_pubsub
     python3 limit_switch.py
-The terminal shud start publishing the limit switch state, press and release the limit switch and check if the publisher updates the limit switch state.
+The terminal should start publishing the limit switch state, press and release the limit switch and check if the publisher updates the limit switch state.
 If not, reboot your TurtleBot and repeat the TurtleBot system Check.
 #### For your Laptop
+We need to run a factory test on the TurtleBot from the Laptop to test if the laptop is able to communicate with the RPi and if all components of the TurtleBot is functional using [r2factory_test.py](https://github.com/yinheng996/r2table_nav/blob/main/table_nav/table_nav/r2factory_test.py).
 ##### In one terminal
     cd <path to r2table_nav directory>/table_nav/table_nav
     python3 r2factory_test.py
 Follow the instructions printed on your terminal, and if everything works out fine, it means the system is ready to go.
 #### For your ESP32
-   Launch the ESP32 factory test scripts in our `/ESP32_test` folder onto your Arduino IDE, then upload and run on your ESP32 module. <br/>
+We need to run a factory test on the ESP32. <br/>
+   Launch the ESP32 factory test scripts in our [/ESP32_test](https://github.com/yinheng996/r2table_nav/tree/main/ESP32_test) folder onto your Arduino IDE, then upload and run on your ESP32 module. <br/>
    Do this individually for each script. <br/>
    If your ESP32 module passes all the tests, it is ready to go.
 #### For your MQTT X
+We need to check if the MQTT is able to received messages from the ESP32. <br/>
    Launch the MQTT desktop client. <br/>
    Check for messages received from the ESP32 Publisher. If nothing is received, refresh the desktop client. <br/>
 
 ## Operation Parameters
-From lines 15 to 39 of /table_nav/table_nav/r2tcheckpt_nav.py
+From lines 15 to 39 of [/table_nav/table_nav/r2tcheckpt_nav.py](https://github.com/yinheng996/r2table_nav/blob/main/table_nav/table_nav/r2tcheckpt_nav.py)
 
 The explanation of all the parameters are as commented below. These are the values which we found work the best for us in our use case. Please change these values if you require a different behavior of the robot.
 
@@ -123,7 +126,7 @@ The explanation of all the parameters are as commented below. These are the valu
     scanfile = 'lidar.txt' # file to store lidar data logged
     mapfile = 'map.txt' # file to store map data logged
 
-From lines 41 to 47 of /table_nav/table_nav/r2tcheckpt_nav.py
+From lines 41 to 47 of [/table_nav/table_nav/r2tcheckpt_nav.py](https://github.com/yinheng996/r2table_nav/blob/main/table_nav/table_nav/r2tcheckpt_nav.py)
 
 Please input your MQTT configurations, especially your username and password.
 
