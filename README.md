@@ -60,7 +60,7 @@ __Important__: Please note that our project has been developed using Ubuntu 20.0
     1. Open the code for the ESP32 in the Arduino IDE. This will be located in the repository that you cloned in step 1. In the code, make any necessary changes or modifications.
     2. Connect the ESP32 to your computer using a USB cable.
     3. In the Arduino IDE, select the correct board and serial port. To do this, navigate to `Tools` -> `Board` and select `ESP32 Dev Module`. Then, navigate to `Tools` -> `Port` and select the correct serial port.
-    4. Click on the `Upload` button in the Arduino IDE to upload the code onto the ESP32.
+    4. To upload the code onto the ESP32, click on the `Upload` button in the Arduino IDE and hold down BOOT button on esp32, release the button once u see "connecting" in the serial monitor.
     5. Once the upload is complete, disconnect the ESP32 from your computer and power it using an external power source. The code should now be running on the ESP32.
 4. To setup MQTT X, launch the MQTT X Desktop Client
     1. After the connection to ESP32 is successful, click the `New Subscription` button in the lower left corner to add New Topics. <br/>
