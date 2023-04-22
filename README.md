@@ -18,12 +18,12 @@ TODO: update after finalised
 
 ## Operating Instructions
 ### Installation
-1. Follow the instructions here to setup ROS 2 Foxy on laptop and turtlebot. <br/>
-    (You may stop once you are able to teleoperate the turtlebot from your computer.) <br/> 
+1. Follow the instructions here to setup ROS 2 Foxy on laptop and TurtleBot. <br/>
+    (You may stop once you are able to teleoperate the TurtleBot from your computer.) <br/> 
     https://emanual.robotis.com/docs/en/platform/turtlebot3/quick-start/
-2. Follow the instructions here to setup MQTT X on your laptop. <br/>
-    (We are using a cloud-based MQTT broker for this project (MQTT X) for better consistency.) <br/> 
-    https://mqttx.app/docs/downloading-and-installation
+2. Follow the instructions here to download, install and setup MQTT X on your laptop. <br/>
+    (We are using a cloud-based MQTT desktop client for this project (MQTT X) for better consistency.) <br/> 
+    https://github.com/emqx/MQTTX/blob/main/docs/manual.md
 3. Follow the instructions here to setup ESP32 software. <br/> 
     https://esp32io.com/tutorials/esp32-software-installization
 5. Follow the instructions here to setup Arduino IDE on your laptop. <br/> 
@@ -36,70 +36,76 @@ TODO: update after finalised
     * ezButton by ArduinoGetStarted.com
 5. Follow the instructions here to setup Paho-MQTT on your laptop. <br/>
 https://pypi.org/project/paho-mqtt/
-6. Refer to our `/hardware` folder for the schematics of the circuits that we use to replicate our robot system. <br/>
+6. Refer to our `/Hardware/Electrical Circuits` folder for the schematics of the circuits that we use to replicate our robot system. <br/>
 
-__Important__: Please note that our project has been developed using Ubuntu 20.04.4, ROS2 Foxy, Arduino 2.1.0 and Python 3.6, as well as a Raspberry Pi 3B+ and a DOIT ESP32 Devkit V1 Board. As such, modifications may be necessary when using other software systems or hardware platforms.
+__Important__: Please note that our project has been developed using Ubuntu 20.04.4, ROS2 Foxy, Arduino 2.1.0 and Python 3.6, as well as a DOIT ESP32 Devkit V1 Board and a Robotis Co. TurtleBot3 Burger with Raspberry Pi 3B+. As such, modifications may be necessary when using other software systems or hardware platforms.
 
 ### Setup
 
-1. On your Ubuntu Machine, clone our repository into your Home directory. Compile the workspace. <br/>
+1. To setup your Ubuntu Machine, clone our repository into your Home directory. Compile the workspace. <br/>
 
     ```
     cd colcon_ws/src/auto_nav
     git clone https://github.com/yinheng996/r2table_nav.git 
     cd colcon_ws
     colcon build
-2. Copy the `/py_pubsub` folder onto the Raspberry Pi. Compile the workspace. <br/>
+2. To setup your TurtleBot, copy the `/py_pubsub` folder onto the Raspberry Pi. Compile the workspace. <br/>
     
     ```
     ssh ubuntu@<RPi IP address>
     scp -r <path to r2table_nav directory>/py_pubsub ubuntu@<RPi IP address>:~/turtlebot_ws/src 
     cd turtlebot3_ws
     colcon build 
-3. We will use Arduino IDE to setup the ESP32.
+3. To setup the ESP32, we will use the Arduino IDE.
     1. Open the code for the ESP32 in the Arduino IDE. This will be located in the repository that you cloned in step 1. In the code, make any necessary changes or modifications.
     2. Connect the ESP32 to your computer using a USB cable.
     3. In the Arduino IDE, select the correct board and serial port. To do this, navigate to `Tools` -> `Board` and select `ESP32 Dev Module`. Then, navigate to `Tools` -> `Port` and select the correct serial port.
     4. Click on the `Upload` button in the Arduino IDE to upload the code onto the ESP32.
     5. Once the upload is complete, disconnect the ESP32 from your computer and power it using an external power source. The code should now be running on the ESP32.
-
+4. To setup MQTT X, launch the MQTT X Desktop Client
+    1. After the connection to ESP32 is successful, click the `New Subscription` button in the lower left corner to add New Topics. <br/>
+    2. Add the topics `docking` and `table_num`
 ## System check
-Before you start using the robot, make sure everything is running properly by using the factory_test package. Follow these instructions to check the system:
+Before you start using the robot, make sure everything is running properly by using `r2factory_test.py`. Follow these instructions to check the system:
 
-#### For your Turtlebot
+#### For your TurtleBot
 ##### In one terminal
     ssh ubuntu@<RPi IP address>
     roslaunch turtlebot3_bringup turtlebot3_robot.launch
 ##### In another terminal
     ssh ubuntu@<RPi IP address>
-    ros2 launch hardware_bringup hardware.launch.py
-Finally, we will run the script in your laptop to check that the whole system is working.
+    cd <path to r2table_nav directory>/py_pubsub
+    python3 limit_switch.py
+The terminal shud start publishing the limit switch state, press and release the limit switch and check if the publisher updates the limit switch state.
+If not, reboot your TurtleBot and repeat the TurtleBot system Check.
 #### For your Laptop
 ##### In one terminal
-    ros2 run auto_nav factory_test
+    cd <path to r2table_nav directory>/table_nav/table_nav
+    python3 r2factory_test.py
 Follow the instructions printed on your terminal, and if everything works out fine, it means the system is ready to go.
 #### For your ESP32
    Launch the ESP32 factory test scripts in our `/ESP32_test` folder onto your Arduino IDE, then upload and run on your ESP32 module. <br/>
    Do this individually for each script. <br/>
    If your ESP32 module passes all the tests, it is ready to go.
+#### For your MQTT X
+   Launch the MQTT desktop client. <br/>
+   Check for messages received from the ESP32 Publisher. If nothing is received, refresh the desktop client. <br/>
 
 ## Calibration and Configuration
 TODO: after tidying code
 
 ## Running the Code
-A total of 4 terminals would be required to run the code, in addition to the MQTT X GUI.
+A total of 3 terminals would be required to run the code, in addition to the MQTT X desktop client. Ensure that Wifi connection is established and the ESP32, Laptop and TurtleBot are all in the same Wifi connection.
 ##### In Terminal 1: To bring up TurtleBot3
     ssh ubuntu@<RPi IP address>
     roslaunch turtlebot3_bringup turtlebot3_robot.launch
 ##### In Terminal 2: To host Bot Limit Switch Publisher
     ssh ubuntu@<RPi IP address>
     cd <path to r2table_nav directory>/py_pubsub_robot
-    python3 limit_switch.py 
-##### In Terminal 3: To host Bot LDR Publisher
-    ssh ubuntu@<RPi IP address>
-    cd <path to r2table_nav directory>/py_pubsub_robot
-    python3 IR.py
-##### In Terminal 4: To run navigation code
+    python3 limit_switch.py
+##### In Terminal 3: To run navigation code
     cd <path to r2table_nav directory>/table_nav/table_nav
     python3 r2tcheckpt_nav.py
 #### In MQTT X:
+    Launch MQTT X and select `connect`.
+The system is ready to go. Press a number from 1-6 on the keypad for Food Delivery.
