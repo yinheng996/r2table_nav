@@ -91,8 +91,48 @@ Follow the instructions printed on your terminal, and if everything works out fi
    Launch the MQTT desktop client. <br/>
    Check for messages received from the ESP32 Publisher. If nothing is received, refresh the desktop client. <br/>
 
-## Calibration and Configuration
-TODO: after tidying code
+## Operation Parameters
+From lines 15 to 39 of /table_nav/table_nav/r2tcheckpt_nav.py
+
+The explanation of all the parameters are as commented below. These are the values which we found work the best for us in our use case. Please change these values if you require a different behavior of the robot.
+
+    # constants
+    rotation_speed_fast = 0.5 # speed of fast rotation, mainly for regular turns
+    rotation_speed_slow = 0.2 # speed of slow rotation, mainly for calibrations
+    moving_speed = 0.18 # speed of linear movements
+    lidar_offset = 0.193 # distance from lidar to front of robot
+    lidar_offset_b = 0.094 # ditance from lidar to back of robot
+    disp_from_wall = 0.50 # distance from centre of dispenser to wall
+    stop_distance = 0.1 # distance to stop from Table with front facing table
+    stop_distance += lidar_offset 
+    stop_distance_b = 0.1 # distance to stop from Table with back facing table
+    stop_distance_b += lidar_offset_b 
+
+    centre_of_rotation_f_offset = 0.152 # distance from centre of rotation to front of robot
+    centre_of_rotation_b_offset = 0.13 # distance from centre of rotation to back of robot
+
+    move_dist_f = lidar_offset + 0.14 + 0.04 + 0.03 # movement offset at speed 0.18 from front
+    move_dist_corf = move_dist_f - centre_of_rotation_f_offset # movement offset at speed 0.18 from centre of rotation from front
+    move_dist_b = lidar_offset_b + 0.13 + 0.04 +0.04 + 0.03 # movement offset at speed -0.18 from back
+    move_dist_corb = move_dist_b - centre_of_rotation_b_offset # movement offset at speed -0.18 from centre of rotation from back
+
+    angle_sweep = 30 # angle to sweep for Table
+    front_angles = range(-angle_sweep, angle_sweep+1,1)
+    back_angles = range(180-angle_sweep, 180+angle_sweep+1,1)
+    scanfile = 'lidar.txt' # file to store lidar data logged
+    mapfile = 'map.txt' # file to store map data logged
+
+From lines 41 to 47 of /table_nav/table_nav/r2tcheckpt_nav.py
+
+Please input your MQTT configurations, especially your username and password.
+
+    # MQTT variables
+    mqtt_broker = "broker.emqx.io"
+    mqtt_port = 1883
+    mqtt_username = "idpgrp3" # username for mqtt broker
+    mqtt_password = "turtlebot" # password for mqtt broker
+    mqtt_topic_tablenum = "table_num" # topic to subscribe to for table number
+    mqtt_topic_docking = "docking" # topic to subscribe to for docking
 
 ## Running the Code
 A total of 3 terminals would be required to run the code, in addition to the MQTT X desktop client. Ensure that Wifi connection is established and the ESP32, Laptop and TurtleBot are all in the same Wifi connection.
