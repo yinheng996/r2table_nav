@@ -13,37 +13,42 @@ from paho.mqtt import client as mqtt_client
 from std_msgs.msg import Bool, String
 
 # constants
-rotation_speed = 0.2
-occ_bins = [-1, 0, 100, 101] 
-lidar_offset = 0.193
-lidar_offset_b = 0.094
+rotation_speed_fast = 0.5 # speed of fast rotation, mainly for regular turns
+rotation_speed_slow = 0.2 # speed of slow rotation, mainly for calibrations
+moving_speed = 0.18 # speed of linear movements
+lidar_offset = 0.193 # distance from lidar to front of robot
+lidar_offset_b = 0.094 # ditance from lidar to back of robot
+disp_from_wall = 0.50 # distance from centre of dispenser to wall
+stop_distance = 0.1 # distance to stop from Table with front facing table
+stop_distance += lidar_offset 
+stop_distance_b = 0.1 # distance to stop from Table with back facing table
+stop_distance_b += lidar_offset_b 
 
-stop_distance = 0.1 + lidar_offset
-stop_distance_b = 0.1 + lidar_offset_b
+centre_of_rotation_f_offset = 0.152 # distance from centre of rotation to front of robot
+centre_of_rotation_b_offset = 0.13 # distance from centre of rotation to back of robot
 
-centre_of_rotation_f_offset = 0.152
-centre_of_rotation_b_offset = 0.13
+move_dist_f = lidar_offset + 0.14 + 0.04 + 0.03 # movement offset at speed 0.18 from front
+move_dist_corf = move_dist_f - centre_of_rotation_f_offset # movement offset at speed 0.18 from centre of rotation from front
+move_dist_b = lidar_offset_b + 0.13 + 0.04 +0.04 + 0.03 # movement offset at speed -0.18 from back
+move_dist_corb = move_dist_b - centre_of_rotation_b_offset # movement offset at speed -0.18 from centre of rotation from back
 
-move_dist_f = lidar_offset +0.14 + 0.04 + 0.03
-move_dist_corf = move_dist_f - centre_of_rotation_f_offset
-move_dist_b = lidar_offset_b + 0.13 + 0.04 +0.04 + 0.03
-move_dist_corb = move_dist_b - centre_of_rotation_b_offset 
-
-angle_sweep = 30
+angle_sweep = 30 # angle to sweep for Table
 front_angles = range(-angle_sweep, angle_sweep+1,1)
 back_angles = range(180-angle_sweep, 180+angle_sweep+1,1)
-scanfile = 'lidar.txt'
-mapfile = 'map.txt'
+scanfile = 'lidar.txt' # file to store lidar data logged
+mapfile = 'map.txt' # file to store map data logged
 
 # MQTT variables
 mqtt_broker = "broker.emqx.io"
 mqtt_port = 1883
-mqtt_username = "idpgrp3"
-mqtt_password = "turtlebot"
-mqtt_topic_tablenum = "table_num"
-mqtt_topic_docking = "docking"
+mqtt_username = "idpgrp3" # username for mqtt broker
+mqtt_password = "turtlebot" # password for mqtt broker
+mqtt_topic_tablenum = "table_num" # topic to subscribe to for table number
+mqtt_topic_docking = "docking" # topic to subscribe to for docking
 table_num = 0 
 docking = False
+
+occ_bins = [-1, 0, 100, 101] 
 
 # Line Following dictionary
 line_dict= {'3' : 'stop',\
@@ -226,9 +231,9 @@ class TableNav(Node):
     def rotatebot(self, rot_angle):
 
         if rot_angle > 5:
-            rotation_speed = 0.5
+            rotation_speed = rotation_speed_fast
         else:
-            rotation_speed = 0.2
+            rotation_speed = rotation_speed_slow
 
         # self.get_logger().info('In rotatebot')
         # create Twist object
@@ -297,7 +302,7 @@ class TableNav(Node):
 
         # create Twist object, publish movement
         twist = Twist()
-        twist.linear.x = move_dict[direction] * 0.18
+        twist.linear.x = move_dict[direction] * moving_speed
         twist.angular.z = 0.0
         time.sleep(1)
         self.publisher_.publish(twist)
