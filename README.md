@@ -16,7 +16,7 @@ You may check out our project report under the `/documentations` folder for more
 ## File Organisation
 TODO: update after finalised
 
-## Operating Instructions
+## Preparation
 ### Installation
 1. Follow the instructions here to setup ROS 2 Foxy on laptop and TurtleBot. <br/>
     (You may stop once you are able to teleoperate the TurtleBot from your computer.) <br/> 
