@@ -4,16 +4,17 @@
 This is an open-source project for a Food Delivery Robot, developed as part of the __EG2310 Fundamentals of System Design__ module, Sem 2 AY22/23, under the _Innovation and Design Programme (iDP)_ at National University of Singapore (NUS).
 
 The project team, Studio 2 Group 3, comprises of Loh Yin Heng, Wang Bo, Jeanette Sim Yu, Hang Jin Guang, and Ananya Agarwal.
-<br/> <p align="center">
-<img src="https://user-images.githubusercontent.com/122879077/233826292-b6c0dc42-9383-44e9-9bd9-e6cfa918b1e7.png" width="300" height="300">
-
 
 ## Description
 Our objective is to build a food delivery robot that seamlessly navigates through a restaurant, collects an order, and delivers it to the designated table. Our design is based on the Turtlebot 3 platform and utilizes ROS 2 Foxy as its operating system. We employ the MQTT messaging protocol for inter-system communication.
 
 To achieve our objective, we have built a dispenser equipped with a keypad that allows for the selection of the table. Our dispenser is powered by an ESP32 microcontroller, which serves as the brain of the dispenser. This allows for seamless communication between the dispenser and the robot, and enables us to easily modify and update the dispenser's functionality.
+<br>
+<br/> <p align="center">
+    <img src="https://user-images.githubusercontent.com/122879077/233841304-ab16c932-ab80-477a-b618-6f15774b9d3b.png" width="360" height="300"> <img src="https://user-images.githubusercontent.com/122879077/233841313-2b1df63c-55d7-490e-80f8-eda8d16ff1b5.png" width="330" height="300">
+<br/>
 
-This repository houses the code for robot navigation, MQTT communication and dispenser functions.
+<br>This repository houses the code for robot navigation, MQTT communication and dispenser functions.
 You may check out our project report under the [/Documentations](https://github.com/yinheng996/r2table_nav/tree/main/Documentations) folder for more details on our robot and its mission.
 
 ## Important Files
