@@ -45,7 +45,8 @@ You may check out our project report under the [/Documentations](https://github.
     * ezButton by ArduinoGetStarted.com
 5. Follow the instructions here to setup Paho-MQTT on your laptop. <br/>
 https://pypi.org/project/paho-mqtt/
-6. Refer to our [/Hardware/Electrical Circuits](https://github.com/yinheng996/r2table_nav/tree/main/Hardware/Electrical%20Circuits) folder for the schematics of the circuits that we use to replicate our robot system. <br/>
+6. Refer to our [/Hardware/Electrical Circuits](https://github.com/yinheng996/r2table_nav/tree/main/Hardware/Electrical%20Circuits) folder for the schematics of the circuits that we use to replicate our robot and dispenser system. <br/>
+7. Refer to our [/Hardware/Mechanical Parts](https://github.com/yinheng996/r2table_nav/tree/main/Hardware/Mechanical%20Parts) folder for the fabrications and assembly that we use to replicate our robot and dispenser system. <br/>
 
 __Important__: Please note that our project has been developed using Ubuntu 20.04.4, ROS2 Foxy, Arduino 2.1.0 and Python 3.6, as well as a DOIT ESP32 Devkit V1 Board and a Robotis Co. TurtleBot3 Burger with Raspberry Pi 3B+. As such, modifications may be necessary when using other software systems or hardware platforms.
 
