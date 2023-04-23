@@ -4,6 +4,9 @@
 This is an open-source project for a Food Delivery Robot, developed as part of the __EG2310 Fundamentals of System Design__ module, Sem 2 AY22/23, under the _Innovation and Design Programme (iDP)_ at National University of Singapore (NUS).
 
 The project team, Studio 2 Group 3, comprises of Loh Yin Heng, Wang Bo, Jeanette Sim Yu, Hang Jin Guang, and Ananya Agarwal.
+<br/> <p align="center">
+<img src="https://user-images.githubusercontent.com/122879077/233826292-b6c0dc42-9383-44e9-9bd9-e6cfa918b1e7.png" width="300" height="300">
+
 
 ## Description
 Our objective is to build a food delivery robot that seamlessly navigates through a restaurant, collects an order, and delivers it to the designated table. Our design is based on the Turtlebot 3 platform and utilizes ROS 2 Foxy as its operating system. We employ the MQTT messaging protocol for inter-system communication.
