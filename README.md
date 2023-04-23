@@ -13,8 +13,12 @@ To achieve our objective, we have built a dispenser equipped with a keypad that 
 This repository houses the code for robot navigation, MQTT communication and dispenser functions.
 You may check out our project report under the [/Documentations](https://github.com/yinheng996/r2table_nav/tree/main/Documentations) folder for more details on our robot and its mission.
 
-## File Organisation
-TODO: update after finalised
+## Important Files
+* [disp_code.ino](https://github.com/yinheng996/r2table_nav/blob/main/ESP32_disp/disp_code.ino) - This file serves as the dispenser master script, responsible for powering the entire dispenser. It encompasses a range of functions including integration of the keypad, servo, and limit switch, in addition to the publisher code for MQTT. <br/>
+* [limit_switch.py](https://github.com/yinheng996/r2table_nav/blob/main/py_pubsub_robot/limit_switch.py) - This file contains the code to be run on the RPi. It is in charge of publishing the limit switch status out to the remote laptop to let the remote laptop know when food has been removed from the carrier and to return to the dispenser so that it can take the next order.<br/>
+* [r2tcheckpt_nav.py](https://github.com/yinheng996/r2table_nav/blob/main/table_nav/table_nav/r2tcheckpt_nav.py) - This file the master navigation script that we run on the laptop. It subscribes to MQTT and ROS topics and navigates the TurtleBot based on Table Number inputted on the dispenser. The main functions used to navigate around the restaurant setting is `move_til()` and `right_angle_rotate()`.  The important functions used to complete the task includes `connect_mqtt()`, `docking()`, `check_dist()`, `calibrate()` and `locate_table6()` <br/>
+* [ESP32_test](https://github.com/yinheng996/r2table_nav/tree/main/ESP32_test) - This folder contains a series of C++ files that facilitate testing of the hardware functionality on the dispenser. Included are files to test the ESP32 blink, keypad, limit switch, MQTT publisher, servo and wifi setup.
+* [r2factory_test](https://github.com/yinheng996/r2table_nav/blob/main/table_nav/table_nav/r2factory_test.py) -  This file contains a set of tests designed to verify the functionality of the TurtleBot. Upon execution, step-by-step instructions are displayed on the terminal for users to follow along.
 
 ## Preparation
 ### Installation
