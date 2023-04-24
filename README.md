@@ -148,7 +148,9 @@ Please input your MQTT configurations, especially your username and password.
     mqtt_topic_docking = "docking" # topic to subscribe to for docking
 
 ## Running the Code
-A total of 3 terminals would be required to run the code, in addition to the MQTT X desktop client. Ensure that Wifi connection is established and the ESP32, Laptop and TurtleBot are all in the same Wifi connection.
+A total of __3 terminals__ would be required to run the code, in addition to the __MQTT X desktop client__. <br/> 
+Prior to commencing the operation, ensure that a stable WiFi connection is established and that all devices, including the ESP32, laptop, and TurtleBot, are connected to the same WiFi network. It is critical to verify that all electrical connections are secure, and all mechanical mountings on both the TurtleBot and Dispenser are firmly in place before initiating the operation. <br/>
+__To ensure reliable and safe performance, it is advised to avoid any physical contact with the system during operation.__ <br>
 ##### In Terminal 1: To bring up TurtleBot3
     ssh ubuntu@<RPi IP address>
     roslaunch turtlebot3_bringup turtlebot3_robot.launch
