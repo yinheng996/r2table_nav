@@ -105,50 +105,52 @@ We need to check if the MQTT is able to received messages from the ESP32. <br/>
    Check for messages received from the ESP32 Publisher. If nothing is received, refresh the desktop client. <br/>
 
 ## Operation Parameters
-From lines 15 to 39 of [/table_nav/table_nav/r2tcheckpt_nav.py](https://github.com/yinheng996/r2table_nav/blob/main/table_nav/table_nav/r2tcheckpt_nav.py)
+From lines 15 to 41 of [/table_nav/table_nav/r2tcheckpt_nav.py](https://github.com/yinheng996/r2table_nav/blob/main/table_nav/table_nav/r2tcheckpt_nav.py)
 
 The explanation of all the parameters are as commented below. These are the values which we found work the best for us in our use case. Please change these values if you require a different behavior of the robot.
 
-    # constants
-    rotation_speed_fast = 0.5 # speed of fast rotation, mainly for regular turns
-    rotation_speed_slow = 0.2 # speed of slow rotation, mainly for calibrations
-    moving_speed = 0.18 # speed of linear movements
-    lidar_offset = 0.193 # distance from lidar to front of robot
-    lidar_offset_b = 0.094 # ditance from lidar to back of robot
-    disp_from_wall = 0.50 # distance from centre of dispenser to wall
-    stop_distance = 0.1 # distance to stop from Table with front facing table
-    stop_distance += lidar_offset 
-    stop_distance_b = 0.1 # distance to stop from Table with back facing table
-    stop_distance_b += lidar_offset_b 
+    # Constants
+    FAST_ROTATION_SPEED = 0.5 # speed of fast rotation, mainly for regular turns
+    SLOW_ROTATION_SPEED = 0.2 # speed of slow rotation, mainly for calibrations
+    MOVING_SPEED = 0.18 # speed of linear movements
 
-    centre_of_rotation_f_offset = 0.152 # distance from centre of rotation to front of robot
-    centre_of_rotation_b_offset = 0.13 # distance from centre of rotation to back of robot
+    LIDAR_FRONT_OFFSET = 0.193 # distance from lidar to front of robot
+    LIDAR_BACK_OFFSET = 0.094 # distance from lidar to back of robot
+    DISPENSER_WALL_DISTANCE = 0.50 # distance from centre of dispenser to wall
+    STOP_DISTANCE = 0.1 + LIDAR_FRONT_OFFSET # distance to stop from Table
 
-    move_dist_f = lidar_offset + 0.14 + 0.04 + 0.03 # movement offset at speed 0.18 from front
-    move_dist_corf = move_dist_f - centre_of_rotation_f_offset # movement offset at speed 0.18 from centre of rotation from front
-    move_dist_b = lidar_offset_b + 0.13 + 0.04 +0.04 + 0.03 # movement offset at speed -0.18 from back
-    move_dist_corb = move_dist_b - centre_of_rotation_b_offset # movement offset at speed -0.18 from centre of rotation from back
+    CORF_OFFSET = 0.152 # distance from centre of rotation to front of robot
+    CORB_OFFSET = 0.13 # distance from centre of rotation to back of robot
 
-    angle_sweep = 30 # angle to sweep for Table
-    front_angles = range(-angle_sweep, angle_sweep+1,1)
-    back_angles = range(180-angle_sweep, 180+angle_sweep+1,1)
-    scanfile = 'lidar.txt' # file to store lidar data logged
-    mapfile = 'map.txt' # file to store map data logged
+    DOCKING_DIST = 0.178 # distance to stop from docking station
 
-From lines 41 to 47 of [/table_nav/table_nav/r2tcheckpt_nav.py](https://github.com/yinheng996/r2table_nav/blob/main/table_nav/table_nav/r2tcheckpt_nav.py)
+    MOVE_DIST_F = LIDAR_FRONT_OFFSET + 0.21 # movement offset at speed 0.18 from front
+    MOVE_DIST_CORF = MOVE_DIST_F - CORF_OFFSET # movement offset at speed 0.18 from centre of rotation from front
+    MOVE_DIST_B = LIDAR_BACK_OFFSET + 0.24 # movement offset at speed -0.18 from back
+    MOVE_DIST_CORB = MOVE_DIST_B - CORB_OFFSET # movement offset at speed -0.18 from centre of rotation from back
+
+    SWEEP_ANGLE = 30 # angle to sweep for Table
+    ANGLE_RANGE = range(-SWEEP_ANGLE, SWEEP_ANGLE + 1) # range of angles to sweep for Table
+
+    LIDAR_DATA_FILE = 'lidar.txt' # file to store lidar data logged
+    MAP_DATA_FILE = 'map.txt' # file to store map data logged
+
+    CAN_DROP = 4 # seconds to wait before can is dropped
+
+From lines 43 to 49 of [/table_nav/table_nav/r2tcheckpt_nav.py](https://github.com/yinheng996/r2table_nav/blob/main/table_nav/table_nav/r2tcheckpt_nav.py)
 
 Please input your MQTT configurations, especially your username and password.
 
     # MQTT variables
-    mqtt_broker = "broker.emqx.io"
-    mqtt_port = 1883
-    mqtt_username = "idpgrp3" # username for mqtt broker
-    mqtt_password = "turtlebot" # password for mqtt broker
-    mqtt_topic_tablenum = "table_num" # topic to subscribe to for table number
-    mqtt_topic_docking = "docking" # topic to subscribe to for docking
+    MQTT_BROKER = "broker.emqx.io"
+    MQTT_PORT = 1883
+    MQTT_USERNAME = "idpgrp3" # username for MQTT broker
+    MQTT_PASSWORD = "turtlebot" # password for MQTT broker
+    MQTT_TOPIC_TABLENUM = "table_num" # topic to subscribe to for table number
+    MQTT_TOPIC_DOCKING = "docking" # topic to subscribe to for docking
 
 ## Running the Code
-A total of __3 terminals__ would be required to run the code, in addition to the __MQTT X desktop client__. <br/> 
+A total of __4 terminals__ would be required to run the code, in addition to the __MQTT X desktop client__. <br/> 
 Prior to commencing the operation, ensure that a stable WiFi connection is established and that all devices, including the ESP32, laptop, and TurtleBot, are connected to the same WiFi network. It is critical to verify that all electrical connections are secure, and all mechanical mountings on both the TurtleBot and Dispenser are firmly in place before initiating the operation. <br/>
 __To ensure reliable and safe performance, it is advised to avoid any physical contact with the system during operation.__ <br>
 ##### In Terminal 1: To bring up TurtleBot3
@@ -158,7 +160,11 @@ __To ensure reliable and safe performance, it is advised to avoid any physical c
     ssh ubuntu@<RPi IP address>
     cd <path to r2table_nav directory>/py_pubsub_robot
     python3 limit_switch.py
-##### In Terminal 3: To run navigation code
+##### In Terminal 3: To host IR Sensor Publisher
+    ssh ubuntu@<RPi IP address>
+    cd <path to r2table_nav directory>/py_pubsub_robot
+    python3 IR.py
+##### In Terminal 4: To run navigation code
     cd <path to r2table_nav directory>/table_nav/table_nav
     python3 r2tcheckpt_nav.py
 #### In MQTT X:
