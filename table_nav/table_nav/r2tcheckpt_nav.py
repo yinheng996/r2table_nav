@@ -12,56 +12,61 @@ import time
 from paho.mqtt import client as mqtt_client
 from std_msgs.msg import Bool, String
 
-# constants
-rotation_speed_fast = 0.5 # speed of fast rotation, mainly for regular turns
-rotation_speed_slow = 0.2 # speed of slow rotation, mainly for calibrations
-moving_speed = 0.18 # speed of linear movements
-lidar_offset = 0.193 # distance from lidar to front of robot
-lidar_offset_b = 0.094 # ditance from lidar to back of robot
-disp_from_wall = 0.50 # distance from centre of dispenser to wall
-stop_distance = 0.1 # distance to stop from Table with front facing table
-stop_distance += lidar_offset 
-stop_distance_b = 0.1 # distance to stop from Table with back facing table
-stop_distance_b += lidar_offset_b 
+# Constants
+FAST_ROTATION_SPEED = 0.5 # speed of fast rotation, mainly for regular turns
+SLOW_ROTATION_SPEED = 0.2 # speed of slow rotation, mainly for calibrations
+MOVING_SPEED = 0.18 # speed of linear movements
 
-centre_of_rotation_f_offset = 0.152 # distance from centre of rotation to front of robot
-centre_of_rotation_b_offset = 0.13 # distance from centre of rotation to back of robot
+LIDAR_FRONT_OFFSET = 0.193 # distance from lidar to front of robot
+LIDAR_BACK_OFFSET = 0.094 # distance from lidar to back of robot
+DISPENSER_WALL_DISTANCE = 0.50 # distance from centre of dispenser to wall
+STOP_DISTANCE = 0.1 + LIDAR_FRONT_OFFSET # distance to stop from Table
 
-move_dist_f = lidar_offset + 0.14 + 0.04 + 0.03 # movement offset at speed 0.18 from front
-move_dist_corf = move_dist_f - centre_of_rotation_f_offset # movement offset at speed 0.18 from centre of rotation from front
-move_dist_b = lidar_offset_b + 0.13 + 0.04 +0.04 + 0.03 # movement offset at speed -0.18 from back
-move_dist_corb = move_dist_b - centre_of_rotation_b_offset # movement offset at speed -0.18 from centre of rotation from back
+CORF_OFFSET = 0.152 # distance from centre of rotation to front of robot
+CORB_OFFSET = 0.13 # distance from centre of rotation to back of robot
 
-angle_sweep = 30 # angle to sweep for Table
-front_angles = range(-angle_sweep, angle_sweep+1,1)
-back_angles = range(180-angle_sweep, 180+angle_sweep+1,1)
-scanfile = 'lidar.txt' # file to store lidar data logged
-mapfile = 'map.txt' # file to store map data logged
+DOCKING_DIST = 0.178 # distance to stop from docking station
+
+MOVE_DIST_F = LIDAR_FRONT_OFFSET + 0.21 # movement offset at speed 0.18 from front
+MOVE_DIST_CORF = MOVE_DIST_F - CORF_OFFSET # movement offset at speed 0.18 from centre of rotation from front
+MOVE_DIST_B = LIDAR_BACK_OFFSET + 0.24 # movement offset at speed -0.18 from back
+MOVE_DIST_CORB = MOVE_DIST_B - CORB_OFFSET # movement offset at speed -0.18 from centre of rotation from back
+
+SWEEP_ANGLE = 30 # angle to sweep for Table
+ANGLE_RANGE = range(-SWEEP_ANGLE, SWEEP_ANGLE + 1) # range of angles to sweep for Table
+
+LIDAR_DATA_FILE = 'lidar.txt' # file to store lidar data logged
+MAP_DATA_FILE = 'map.txt' # file to store map data logged
+
+CAN_DROP = 4 # seconds to wait before can is dropped
 
 # MQTT variables
-mqtt_broker = "broker.emqx.io"
-mqtt_port = 1883
-mqtt_username = "idpgrp3" # username for mqtt broker
-mqtt_password = "turtlebot" # password for mqtt broker
-mqtt_topic_tablenum = "table_num" # topic to subscribe to for table number
-mqtt_topic_docking = "docking" # topic to subscribe to for docking
+MQTT_BROKER = "broker.emqx.io"
+MQTT_PORT = 1883
+MQTT_USERNAME = "idpgrp3" # username for MQTT broker
+MQTT_PASSWORD = "turtlebot" # password for MQTT broker
+MQTT_TOPIC_TABLENUM = "table_num" # topic to subscribe to for table number
+MQTT_TOPIC_DOCKING = "docking" # topic to subscribe to for docking
+
 table_num = 0 
 docking = False
 
 occ_bins = [-1, 0, 100, 101] 
 
-# Line Following dictionary
-line_dict= {'3' : 'stop',\
-            '1' : 'left',\
-            '2' : 'right',\
-            '0' : 'forward',\
-            '': 'sian'}
+# Line following dictionary
+line_dict = {
+    '': 'No data',
+    '0': 'Forward',
+    '1': 'Left',
+    '2': 'Right',
+    '3': 'Stop'
+}
 
 def connect_mqtt() -> mqtt_client:
 
     def on_connect(client, userdata, flags, rc):
-        client.subscribe(mqtt_topic_tablenum)
-        client.subscribe(mqtt_topic_docking)
+        client.subscribe(MQTT_TOPIC_TABLENUM)
+        client.subscribe(MQTT_TOPIC_DOCKING)
         if rc == 0:
             print("Connected to MQTT Broker!")
         else:
@@ -69,9 +74,9 @@ def connect_mqtt() -> mqtt_client:
 
     # create MQTT client
     client = mqtt_client.Client('HolyMQTT')
-    client.username_pw_set(mqtt_username, mqtt_password)
+    client.username_pw_set(MQTT_USERNAME, MQTT_PASSWORD)
     client.on_connect = on_connect
-    client.connect(mqtt_broker, mqtt_port, 65535)
+    client.connect(MQTT_BROKER, MQTT_PORT, 65535)
     return client
 
 def subscribe(client: mqtt_client):
@@ -80,25 +85,25 @@ def subscribe(client: mqtt_client):
 
     def on_message(client, userdata, msg):
         nonlocal last_msg
-        global table_num
-        global docking
+        global table_num, docking
+        last_msg = msg
 
-        if True:
-            last_msg = msg
+        topic_mapping = {
+            MQTT_TOPIC_TABLENUM: lambda payload: int(payload.decode()[-2]),
+            MQTT_TOPIC_DOCKING: lambda payload: payload.decode()
+        }
 
-            try:
-                #decodeing msg.payload.decode() to get the table number
-                #the second last character is the table number
-                if (msg.topic == mqtt_topic_tablenum):
-                    table_num = int(msg.payload.decode()[-2])
+        try:
+            table_num, docking = [
+                topic_mapping[msg.topic](msg.payload) 
+                for topic in topic_mapping 
+                if topic == msg.topic
+            ]
+        except Exception as e:
+            print(f"An error occurred: {e}")
 
-                if msg.topic == mqtt_topic_docking:
-                     docking = msg.payload.decode()
 
-            except Exception as e:
-                print(f"An error occurred: {e}")
-
-    client.subscribe(mqtt_topic_tablenum)
+    client.subscribe(MQTT_TOPIC_TABLENUM)
     client.on_message = on_message
 
 def run():
@@ -112,22 +117,9 @@ def run():
         if table_num != 0 and table_num != last_num:
             
             table_nav = TableNav()
-            time.sleep(4)
+            time.sleep(CAN_DROP)
             table_nav.nav(table_num)
             table_nav.destroy_node()
-
-            table_nav = TableNav()
-            while docking == False:
-                client.loop()
-                time.sleep(1)
-                rclpy.spin_once(table_nav)
-                table_nav.onestep()
-                print('one step')
-            
-
-            table_nav.destroy_node()
-
-            # self.move_til('forward', 0, 'less', 0.2, 'front')
     
 
 def euler_from_quaternion(x, y, z, w): # code from https://automaticaddison.com/how-to-convert-a-quaternion-into-euler-angles-in-python/
@@ -230,12 +222,11 @@ class TableNav(Node):
     # function to rotate the TurtleBot
     def rotatebot(self, rot_angle):
 
-        if rot_angle > 5:
-            rotation_speed = rotation_speed_fast
+        if abs(rot_angle) > 5:
+            rotation_speed = FAST_ROTATION_SPEED
         else:
-            rotation_speed = rotation_speed_slow
+            rotation_speed = SLOW_ROTATION_SPEED
 
-        # self.get_logger().info('In rotatebot')
         # create Twist object
         twist = Twist()
         
@@ -264,7 +255,6 @@ class TableNav(Node):
 
         # we will use the c_dir_diff variable to see if we can stop rotating
         c_dir_diff = c_change_dir
-        # self.get_logger().info('c_change_dir: %f c_dir_diff: %f' % (c_change_dir, c_dir_diff))
         # if the rotation direction was 1.0, then we will want to stop when the c_dir_diff
         # becomes -1.0, and vice versa
         while(c_change_dir * c_dir_diff > 0):
@@ -296,14 +286,19 @@ class TableNav(Node):
     # fifth input == point of reference (lidar or front, back, centre of rotation from front, centre of rotation from back or lidar)
     def move_til(self, direction, angle, more_less, dist, pt_of_ref):
 
-        self.get_logger().info('Moving %s until distance at %s degrees is %s than %s from %s' % (direction, angle, more_less, dist, pt_of_ref))
+        self.get_logger().info('Moving %s until distance at %s degrees is %s than %s from %s' \
+                               % (direction, angle, more_less, dist, pt_of_ref))
         
-        move_dict = {'forward': 1, 'backward': -1, 'more': True, 'less': False}
+        move_dict = {
+            'forward': 1, 
+            'backward': -1, 
+            'more': True, 
+            'less': False
+            }
 
         # create Twist object, publish movement
         twist = Twist()
-        twist.linear.x = move_dict[direction] * moving_speed
-        twist.angular.z = 0.0
+        twist.linear.x, twist.angular.z = move_dict[direction] * MOVING_SPEED, 0.0
         time.sleep(1)
         self.publisher_.publish(twist)
 
@@ -312,15 +307,13 @@ class TableNav(Node):
 
         #rebasing the distance based on the point of reference
         if pt_of_ref == 'front':
-            dist += move_dist_f
+            dist += MOVE_DIST_F
         elif pt_of_ref == 'back':
-            dist += move_dist_b
+            dist += MOVE_DIST_B
         elif pt_of_ref == 'centre of rotation from front':
-            dist += move_dist_corf
+            dist += MOVE_DIST_CORF
         elif pt_of_ref == 'centre of rotation from back':
-            dist += move_dist_corb
-        
-        print('Distance to check: %s' % dist)
+            dist += MOVE_DIST_CORB
         
         self.get_logger().info('Linear movement initiated')
         
@@ -343,49 +336,31 @@ class TableNav(Node):
 
         self.get_logger().info('Turning 90 degrees %s' % orientation)
 
-        turn_dict = {'clockwise': 275,
-                    'anticlockwise': 85}
+        turn_dict = {
+            'clockwise': 270,
+            'anticlockwise': 90
+            }
         
         self.rotatebot(turn_dict[orientation])
-
 
     def stop_at_table(self, side_facing_table):
 
         self.get_logger().info('Stopping at table')
 
-        if side_facing_table == 'front': 
-            comparison_range = front_angles
-            stop = stop_distance + 0.06
-            running_speed = 0.05
-            print("Front facing table")
-
-        else:
-            comparison_range = back_angles
-            stop = stop_distance_b 
-            running_speed = -0.05
-            print("Back facing table")
-
-        # check if approaching table
-        #lri = (self.laser_range[comparison_range][~np.isnan(self.laser_range[comparison_range])]<float(stop)).nonzero()
-        def lri_func(stop):
-            x = self.laser_range[comparison_range]
-            x = x[~np.isnan(x)]
-            lis = (x < float(stop)).nonzero()
-            print(lis)
-            print(stop)
-            return lis
+        # get the laser range data for front angles
+        laser_front = self.laser_range[ANGLE_RANGE]
 
         # create Twist object, publish movement
         twist = Twist()
-        twist.linear.x,twist.angular.z = running_speed,0.0
-        time.sleep(1)
+        twist.linear.x, twist.angular.z = 0.05, 0.0
         self.publisher_.publish(twist)
 
         while rclpy.ok():
-            rclpy.spin_once(self)
-            if(len(lri_func(stop)[0])>0):
+            # get the indices of elements less than stop distance
+            indices = [i for i, x in enumerate(laser_front) if not math.isnan(x) and x < float(STOP_DISTANCE)]
+            if len(indices) > 0:
                 print("Arrived")
-                #stop moving
+                # stop moving
                 self.stopbot()
                 break
 
@@ -411,41 +386,34 @@ class TableNav(Node):
                       'B': [160, 180, 200, 'back']}
         
         for attempt in range(max_attempts):
+            rclpy.spin_once(self)
             print(f"Aligning with {calib_dict[direction][3]} wall...")
             if (abs((self.laser_range[calib_dict[direction][0]]/1.064) - self.laser_range[calib_dict[direction][1]])) <= 0.01 and \
                 (abs((self.laser_range[calib_dict[direction][2]]/1.064) - self.laser_range[calib_dict[direction][1]])) <= 0.01:
-                print("Aligned")
+                self.get_logger().info('Aligned with %s wall' % calib_dict[direction][3])
                 break
 
             else:
                 if self.laser_range[calib_dict[direction][0]]/1.064 > self.laser_range[calib_dict[direction][1]] or \
                     self.laser_range[calib_dict[direction][1]] > self.laser_range[calib_dict[direction][2]]/1.064:
-                    print("Tilting left")
                     self.rotatebot(0.5)
-                    rclpy.spin_once(self)
 
                 elif self.laser_range[calib_dict[direction][2]]/1.064 > self.laser_range[calib_dict[direction][1]] or \
                     self.laser_range[calib_dict[direction][1]] > self.laser_range[calib_dict[direction][0]]/1.064:
-                    print("Tilting right")
                     self.rotatebot(-0.5)
-                    rclpy.spin_once(self)
 
-        else:
-            print("Failed to align after {} attempts".format(max_attempts))
-
+            self.get_logger().info('Failed to align after %d attempts' % max_attempts)
     
     def undocking(self):
         # move backwards at 0.10 speed until distance at 0 degrees is more than 0.3m
         # create Twist object, publish movement
         twist = Twist()
-        
-        twist.linear.x = -0.2
-        twist.angular.z = 0.0
+        twist.linear.x, twist.angular.z = -0.2, 0.0
         time.sleep(1)
         self.publisher_.publish(twist)
         
         #dist is distance from tip of the robot 
-        dist =  0.30 + lidar_offset
+        dist =  0.30 + LIDAR_FRONT_OFFSET
         check_dist =  self.laser_range[0]
 
         # check if distance at 0 degrees is more than 0.3m
@@ -466,8 +434,7 @@ class TableNav(Node):
 
         self.get_logger().info('Docking')
         self.calibrate('F')
-
-        self.check_dist(0.49)
+        self.check_dist(DISPENSER_WALL_DISTANCE)
         
         # rotate 90 degrees anticlockwise
         self.right_angle_rotate('anticlockwise')
@@ -477,48 +444,45 @@ class TableNav(Node):
         # create Twist object, publish movement
         twist = Twist()
         twist.linear.x,twist.angular.z = 0.05,0.0
-        time.sleep(1)
         self.publisher_.publish(twist)
 
-        while math.isnan(self.laser_range[0]) or self.laser_range[0] > 0.40: #to replace with check dist limit switch
+        start_time = time.monotonic()
+        while math.isnan(self.laser_range[0]) or self.laser_range[0] > 0.40:
             rclpy.spin_once(self)
-            # print(self.laser_range[0])
+            if time.monotonic() - start_time > 10:  # timeout after 10 seconds
+                self.get_logger().info('Timeout: Failed to dock')
+                return
 
         self.line_follow()
         self.get_logger().info('Docked')
 
-    #function to move forward at 0.01 speed for 1 second
-    def onestep(self):
-        # create Twist object, publish movement
-
-        twist = Twist()
-        twist.linear.x,twist.angular.z = 0.03,0.0
-        time.sleep(1)
-        self.publisher_.publish(twist)
-        time.sleep(1)
-        self.stopbot()
-
     def check_dist(self, limit):
+        # remove NaN values from laser_range array
+        x = self.laser_range.copy()
+        x[np.isnan(x)] = np.inf
+
+        # create Twist object
+        twist = Twist()
 
         # ensure distance at 0 degrees is limit
         while rclpy.ok():
-            rclpy.spin_once(self)
-            self.get_logger().info(str(self.laser_range[0] - lidar_offset + centre_of_rotation_f_offset))
+            rclpy.spin_once(self, timeout_sec=0.1)
 
-            # create Twist object, publish movement
-            twist = Twist()
-            if round((self.laser_range[0] - lidar_offset + centre_of_rotation_f_offset),3) > (limit + 0.01): 
-                twist.linear.x,twist.angular.z = 0.01,0.0 
-            elif math.isnan(self.laser_range[0]):
-                twist.linear.x,twist.angular.z = 0.0, 0.0
-            elif round((self.laser_range[0] - lidar_offset + centre_of_rotation_f_offset),3) < (limit - 0.01):
-                twist.linear.x,twist.angular.z = -0.01,0.0
-            else:
-                twist.linear.x, twist.angular.z = 0.0, 0.0
+            # calculate distance error and set twist velocities
+            error = round(x[0] - LIDAR_FRONT_OFFSET + CORF_OFFSET, 3) - limit
+            twist.linear.x = 0.01 if error > 0.01 else (-0.01 if error < -0.01 else 0.0)
+            twist.angular.z = 0.0
+
+            # publish Twist object and break out of the loop if the error is within tolerance
+            if abs(error) < 0.01:
+                twist.linear.x = 0.0
+                self.publisher_.publish(twist)
                 break
-            time.sleep(1)
+
+            # publish Twist object and continue looping
             self.publisher_.publish(twist)
-            rclpy.spin_once(self)
+            
+        self.get_logger().info(str(x[0] - LIDAR_FRONT_OFFSET + CORF_OFFSET))
     
     # function to locate table 6
     # table 6 is located at the top left quadrant of the robot
@@ -527,47 +491,39 @@ class TableNav(Node):
     # then returns to its study position to its starting position
     def locate_table6(self, starting_angle, ending_angle):
         angle = np.nanargmin(self.laser_range[starting_angle:ending_angle])
-        
-        
-        # instead of moving moving diagonally to the table, we will move in an L-shape, calculated using trigonometry
-        # detected distance is the hypotenuse 
-        # we will move forward by the adjacent side, then rotate 90 degrees anticlockwise, then move forward until distance at 0 degrees is less than 0.3m
-        hypotenuse = self.laser_range[angle]
-        adjacent = abs(hypotenuse * math.cos(angle))
-        opposite = abs(hypotenuse * math.sin(angle))
 
-        self.get_logger().info('Table located: %d %f m' % (angle, hypotenuse))
-        # print(opposite)
+        self.get_logger().info(f'Table located: {angle} degrees')
 
         self.rotatebot(angle)
-
-        # time.sleep(5)
-
-        # move backward until distance at 0 degrees is more than 1.8m
-        # self.move_til('backward', 180, 'less', 1.1, 'back')
-        # self.right_angle_rotate('anticlockwise')
-        # self.calibrate('B')
-        # # move forward by the opposite side
-        # if opposite >  0.5: 
-        #     self.move_til('forward', 180, 'more', (opposite+0.05), 'center of rotation from back')
-        # else: 
-        #     self.move_til('forward', 180, 'more', (opposite-0.15), 'center of rotation from back')
-        # # rotate 90 degrees anticlockwise
-        # self.right_angle_rotate('clockwise')
-        # self.calibrate('R')
-        # move forward until distance at 0 degrees is less than 0.1m
-
         self.stop_at_table('front')
         self.stopbot()
 
-        rclpy.spin_once(self)
         while self.bot_limit == 1:
-            print(self.bot_limit)
             self.get_logger().info('Waiting for can to be picked up')
-            
-            rclpy.spin_once(self)
+            rclpy.spin_once(self)   
 
         self.rotatebot(-angle)
+
+    # use IR sensor for line following
+    def line_follow(self):
+        rclpy.spin_once(self)
+        self.get_logger().info('Line following')
+
+        while self.laser_range[0] > DOCKING_DIST or math.isnan(self.laser_range[0]):
+            rclpy.spin_once(self)
+            self.get_logger().info(str(self.laser_range[0]))
+            
+            twist = Twist()
+            if line_dict[self.ir_sensor] == 'Right':
+                twist.linear.x, twist.angular.z = 0.01, -0.1
+            elif line_dict[self.ir_sensor] == 'Left':
+                twist.linear.x, twist.angular.z = 0.01, 0.1
+            elif line_dict[self.ir_sensor] == 'Forward':
+                twist.linear.x, twist.angular.z = 0.02, 0.0
+                    
+            self.publisher_.publish(twist)   
+
+        self.stopbot()
 
 
     # defining individual checkpoints
@@ -646,10 +602,7 @@ class TableNav(Node):
         self.right_angle_rotate('anticlockwise')
         self.calibrate('R')
         self.move_til('forward', 0, 'less', 1.4, 'centre of rotation from front')
-        # self.check_dist(1.37)
-        # self.check_dist(1.5)
         
-
 
     # defining individual functions for each table
     def to_table1(self):
@@ -714,8 +667,6 @@ class TableNav(Node):
     def to_table4(self):
 
         self.from_dock_to_1()
-        # self.right_angle_rotate('clockwise')
-        # self.calib_1()
 
         self.from_1_to_3()
         self.calib_3()
@@ -726,8 +677,6 @@ class TableNav(Node):
 
     def from_table4(self):
 
-        # self.move_til('backward', 0, 'more', 0.05, 'front')
-
         self.from_3_to_1()
         self.calib_1()
         self.from_1_to_dock()
@@ -735,8 +684,6 @@ class TableNav(Node):
     def to_table6(self):
 
         self.from_dock_to_1()
-        # self.right_angle_rotate('clockwise')
-        # self.calib_1()
 
         self.from_1_to_3()
         self.calib_3()
@@ -778,7 +725,6 @@ class TableNav(Node):
 
         self.move_til('backward', 0, 'more', 1.0, 'front')
         self.right_angle_rotate('anticlockwise')
-        # self.calibrate('F')
         self.move_til('forward', 0, 'less', 0.4, 'centre of rotation from front')
         self.calibrate('F')
         self.check_dist(0.4)
@@ -815,74 +761,16 @@ class TableNav(Node):
 
         self.move_til('forward', 0, 'less', 0.4, 'front')
         self.docking()
-
-    def table6_shortcut(self):
-        
-        # self.calib_4()
-        # self.from_4_to_5()
-        # self.calib_5()
-
-        self.locate_table6(0, 85)
-
-        self.move_til('backward', 180, 'less', 0.50, 'centre of rotation from back')
-        self.right_angle_rotate('anticlockwise')
-        self.right_angle_rotate('anticlockwise')
-        self.calibrate('F')
-        self.check_dist(0.38)
-        self.right_angle_rotate('clockwise')
-        self.calibrate('L')
-
-        self.move_til('forward', 0, 'more', 1.0, 'back')
-        self.calibrate('L')
-        self.move_til('forward', 0, 'less', 0.4, 'front')
     
-    
-    # use IR sensor for line following
-    def line_follow(self):
-        rclpy.spin_once(self)
-        self.get_logger().info('Line following')
-
-        while self.laser_range[0] > 0.178 or math.isnan(self.laser_range[0]):
-            rclpy.spin_once(self)
-
-            self.get_logger().info(str(self.laser_range[0]))
-            if line_dict[self.ir_sensor] == 'right':
-                twist = Twist()
-                twist.linear.x = 0.01
-                twist.angular.z = -0.1
-                self.publisher_.publish(twist)
-                
-            elif line_dict[self.ir_sensor] == 'left':
-
-                twist = Twist()
-                twist.linear.x = 0.01
-                twist.angular.z = 0.1
-                self.publisher_.publish(twist)
-
-            elif line_dict[self.ir_sensor] == 'forward':
-                twist = Twist()
-                twist.linear.x = 0.02
-                twist.angular.z = 0.0
-                self.publisher_.publish(twist)
-                
-            elif line_dict[self.ir_sensor] == 'stop':
-                continue
-            elif line_dict[self.ir_sensor] == 'sian':
-                continue
-        
-            
-
-        self.stopbot()
-
     # governing function to process table number input and execute corresponding table function
     def nav(self, table_num):        
 
         # dictionary containing table number as key and corresponding table function as value
-        nav_dict = {1: (self.to_table1, self.from_table1), \
-                    2: (self.to_table2, self.from_table2), \
-                    3: (self.to_table3, self.from_table3), \
-                    4: (self.to_table4, self.from_table4), \
-                    5: (self.to_table5, self.from_table5), \
+        nav_dict = {1: (self.to_table1, self.from_table1), 
+                    2: (self.to_table2, self.from_table2), 
+                    3: (self.to_table3, self.from_table3), 
+                    4: (self.to_table4, self.from_table4), 
+                    5: (self.to_table5, self.from_table5), 
                     6: (self.to_table6, self.from_table6)}
 
         try:
@@ -890,51 +778,14 @@ class TableNav(Node):
 
             while rclpy.ok():
                 if self.laser_range.size != 0:
-                    rclpy.spin_once(self)
-                    ## to calibrate distance
-                    # self.move_til('forward', 0, 'less', 0.2, 'front')
-                    # self.move_til('forward', 0, 'less', 0.2, 'centre of rotation from front')
-                    # self.move_til('backward', 180 , 'less', 0.2, 'back')
-                    # self.move_til('backward', 180 , 'less', 0.2, 'centre of rotation from back')
-
-                    ## to test table 6 only
-                    # self.table6_shortcut()
-
-                    ## to test docking only:
-                    # twist = Twist()
-                    # twist.linear.x,twist.angular.z = 0.05,0.0
-                    # time.sleep(1)
-                    # self.publisher_.publish(twist)
-                    
-                    # while math.isnan(self.laser_range[0]) or self.laser_range[0] > 0.175: #to replace with check dist limit switch
-                    #     rclpy.spin_once(self)
-                    #     print(self.laser_range[0])
-
-                    # self.stopbot()
-                    # self.get_logger().info('Docked')
-
-                    ##
-                    # self.docking()
-                    # self.line_follow()
-                    # rclpy.spin_once(self)
-                    # while rclpy.ok(): 
-                        
-                    #     self.get_logger().info(line_dict[self.ir_sensor])
-                    #     rclpy.spin_once(self)
-
-
-                    ## standard code
                     nav_dict[table_num][0]()
 
-                    if table_num == 6:
-                        self.locate_table6(0, 90)
-
+                    if table_num == 6: self.locate_table6(0, 90)
                     else: 
                         rclpy.spin_once(self)
                         while self.bot_limit == 1:
                             print(self.bot_limit)
                             self.get_logger().info('Waiting for can to be picked up')
-                            
                             rclpy.spin_once(self)
 
 
@@ -956,18 +807,6 @@ class TableNav(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-
-    ## Option 1: testing with MQTT
     run()
-
-    ## Option 2: testing with manual input
-    # print("Starting node")
-    # table_num = int(input("Enter table number: "))
-    # table_nav = TableNav()
-    # table_nav.nav(table_num)
-    # table_nav.destroy_node()
-
-    # rclpy.shutdown()
-
 
 if __name__ == '__main__': main()
