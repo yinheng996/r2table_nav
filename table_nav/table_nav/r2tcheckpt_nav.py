@@ -263,12 +263,10 @@ class TableNav(Node):
             current_yaw = self.yaw
             # convert the current yaw to complex form
             c_yaw = complex(math.cos(current_yaw),math.sin(current_yaw))
-            # self.get_logger().info('Current Yaw: %f' % math.degrees(current_yaw))
             # get difference in angle between current and target
             c_change = c_target_yaw / c_yaw
             # get the sign to see if we can stop
             c_dir_diff = np.sign(c_change.imag)
-            # self.get_logger().info('c_change_dir: %f c_dir_diff: %f' % (c_change_dir, c_dir_diff))
 
         self.get_logger().info('End Yaw: %f' % math.degrees(current_yaw))
         # set the rotation speed to 0
@@ -387,7 +385,7 @@ class TableNav(Node):
         
         for attempt in range(max_attempts):
             rclpy.spin_once(self)
-            print(f"Aligning with {calib_dict[direction][3]} wall...")
+            self.get_logger.info(f"Aligning with {calib_dict[direction][3]} wall")
             if (abs((self.laser_range[calib_dict[direction][0]]/1.064) - self.laser_range[calib_dict[direction][1]])) <= 0.01 and \
                 (abs((self.laser_range[calib_dict[direction][2]]/1.064) - self.laser_range[calib_dict[direction][1]])) <= 0.01:
                 self.get_logger().info('Aligned with %s wall' % calib_dict[direction][3])
