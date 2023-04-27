@@ -168,5 +168,6 @@ __To ensure reliable and safe performance, it is advised to avoid any physical c
     cd <path to r2table_nav directory>/table_nav/table_nav
     python3 r2tcheckpt_nav.py
 #### In MQTT X:
-   Launch MQTT X and select `connect`. <br/>
+* Launch MQTT X and select `connect`. <br/>
+<br>
 The system is ready to go. Press a number from 1-6 on the keypad for Food Delivery.
